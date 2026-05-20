@@ -5,8 +5,17 @@ struct WeatherPeek: Equatable {
     let summary: String
 }
 
+struct WeatherForecastDay: Equatable, Identifiable {
+    let id = UUID()
+    let date: Date
+    let high: Int
+    let low: Int
+    let condition: String
+}
+
 protocol WeatherServicing {
     func weatherPeek(for trip: Trip) async -> WeatherPeek
+    func tenDayForecast(for trip: Trip) async -> [WeatherForecastDay]
 }
 
 enum WeatherServiceFactory {
@@ -48,10 +57,25 @@ final class WeatherService: WeatherServicing {
 
         return WeatherPeek(summary: "Meander tried peeking at the weather, but the clouds were shy.")
     }
+
+    func tenDayForecast(for trip: Trip) async -> [WeatherForecastDay] {
+        guard let location = await resolver.resolve(destination: trip.destination) else { return [] }
+
+        if let forecast = try? await primary.tenDay(at: location) {
+            return forecast
+        }
+
+        if let fallbackForecast = try? await fallback.tenDay(at: location) {
+            return fallbackForecast
+        }
+
+        return []
+    }
 }
 
 protocol WeatherProviding {
     func peek(at location: CLLocation, for date: Date) async throws -> String
+    func tenDay(at location: CLLocation) async throws -> [WeatherForecastDay]
 }
 
 final class MockWeatherProvider: WeatherProviding {
@@ -63,6 +87,21 @@ final class MockWeatherProvider: WeatherProviding {
             "Weather peek: sunshine with a light breeze near departure."
         ]
         return options[abs(Int(location.coordinate.latitude * 10 + location.coordinate.longitude * 10)) % options.count]
+    }
+
+    func tenDay(at location: CLLocation) async throws -> [WeatherForecastDay] {
+        let baseHigh = 64 + abs(Int(location.coordinate.latitude.rounded())) % 12
+        let conditions = ["Sunny", "Partly Cloudy", "Cloudy", "Light Rain", "Breezy", "Clear"]
+        let start = Calendar.current.startOfDay(for: Date())
+
+        return (0..<10).compactMap { offset in
+            guard let date = Calendar.current.date(byAdding: .day, value: offset, to: start) else { return nil }
+            let wiggle = (offset % 5) - 2
+            let high = baseHigh + wiggle
+            let low = high - 9
+            let condition = conditions[(offset + abs(Int(location.coordinate.longitude.rounded()))) % conditions.count]
+            return WeatherForecastDay(date: date, high: high, low: low, condition: condition)
+        }
     }
 }
 
@@ -79,6 +118,20 @@ final class WeatherKitProvider: WeatherProviding {
         let current = weather.currentWeather
         let temp = Int(current.temperature.value.rounded())
         return "Weather peek: \(temp)° and \(current.condition.description.lowercased()) near departure."
+    }
+
+    func tenDay(at location: CLLocation) async throws -> [WeatherForecastDay] {
+        // TODO: Ensure WeatherKit capability is enabled in Xcode target + Apple Developer portal.
+        let weather = try await service.weather(for: location)
+        let days = weather.dailyForecast.forecast.prefix(10)
+        return days.map { day in
+            WeatherForecastDay(
+                date: day.date,
+                high: Int(day.highTemperature.value.rounded()),
+                low: Int(day.lowTemperature.value.rounded()),
+                condition: day.condition.description
+            )
+        }
     }
 }
 #endif
@@ -101,6 +154,7 @@ actor DestinationLocationResolver {
 @MainActor
 final class TripWeatherViewModel: ObservableObject {
     @Published var weatherLine: String = "Weather peek opens closer to your trip."
+    @Published var tenDayForecast: [WeatherForecastDay] = []
 
     private let service: WeatherServicing
 
@@ -112,6 +166,12 @@ final class TripWeatherViewModel: ObservableObject {
         Task {
             let peek = await service.weatherPeek(for: trip)
             weatherLine = peek.summary
+        }
+    }
+
+    func loadTenDay(for trip: Trip) {
+        Task {
+            tenDayForecast = await service.tenDayForecast(for: trip)
         }
     }
 }

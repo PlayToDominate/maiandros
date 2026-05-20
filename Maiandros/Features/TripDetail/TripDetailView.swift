@@ -10,6 +10,8 @@ struct TripDetailView: View {
     @State private var newCabinetTags = ""
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedCabinetImageItem: PhotosPickerItem?
+    @State private var showingTenDay = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         ScrollView {
@@ -26,12 +28,15 @@ struct TripDetailView: View {
         .navigationTitle(trip.name)
         .onAppear {
             weatherViewModel.loadWeather(for: trip)
+            weatherViewModel.loadTenDay(for: trip)
         }
         .onChange(of: trip.startDate) { _, _ in
             weatherViewModel.loadWeather(for: trip)
+            weatherViewModel.loadTenDay(for: trip)
         }
         .onChange(of: trip.destination) { _, _ in
             weatherViewModel.loadWeather(for: trip)
+            weatherViewModel.loadTenDay(for: trip)
         }
         .onChange(of: trip) { _, updated in
             store.update(updated)
@@ -43,6 +48,9 @@ struct TripDetailView: View {
         .onChange(of: selectedCabinetImageItem) { _, newItem in
             guard let newItem else { return }
             Task { await importGlobalCabinetImage(newItem) }
+        }
+        .sheet(isPresented: $showingTenDay) {
+            TenDayForecastView(days: weatherViewModel.tenDayForecast, departureDate: trip.startDate)
         }
     }
 
@@ -61,6 +69,21 @@ struct TripDetailView: View {
                 Text(weatherViewModel.weatherLine)
                     .font(.footnote)
                     .foregroundStyle(MaiandrosTheme.secondaryText)
+                HStack(spacing: 10) {
+                    Button("See 10-Day Forecast") {
+                        showingTenDay = true
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(weatherViewModel.tenDayForecast.isEmpty)
+
+                    Button("Open Weather App") {
+                        if let url = URL(string: "weather://") {
+                            openURL(url)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(.top, 2)
             }
         }
     }
@@ -290,6 +313,48 @@ struct TripDetailView: View {
         case .inProgress: return .yellow
         case .complete: return MaiandrosTheme.success
         case .skipped: return .gray
+        }
+    }
+}
+
+private struct TenDayForecastView: View {
+    let days: [WeatherForecastDay]
+    let departureDate: Date
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if days.isEmpty {
+                    Text("Meander tried peeking at the weather, but the clouds were shy.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(days) { day in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(day.date, format: .dateTime.weekday(.abbreviated).day())
+                                    .fontWeight(.semibold)
+                                Text(day.condition)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if Calendar.current.isDate(day.date, inSameDayAs: departureDate) {
+                                Text("Departure")
+                                    .font(.caption)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(MaiandrosTheme.cardAlt)
+                                    .clipShape(Capsule())
+                            }
+                            Text("\(day.high)°")
+                                .fontWeight(.semibold)
+                            Text("\(day.low)°")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("10-Day Forecast")
         }
     }
 }
