@@ -26,6 +26,10 @@ final class TripStore: ObservableObject {
         trips[index] = trip
     }
 
+    func deleteTrip(id: UUID) {
+        trips.removeAll { $0.id == id }
+    }
+
     private func load() -> [Trip] {
         guard let data = try? Data(contentsOf: saveURL) else { return [] }
         return (try? JSONDecoder().decode([Trip].self, from: data)) ?? []
