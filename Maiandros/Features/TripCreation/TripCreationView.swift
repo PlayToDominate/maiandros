@@ -9,6 +9,7 @@ struct TripCreationView: View {
     @State private var startDate = Calendar.current.date(byAdding: .day, value: 30, to: .now) ?? .now
     @State private var endDate = Calendar.current.date(byAdding: .day, value: 37, to: .now) ?? .now
     @State private var mode: TravelMode = .flying
+    @State private var reason: TripReason = .vacation
 
     var canSave: Bool {
         !tripName.trimmingCharacters(in: .whitespaces).isEmpty &&
@@ -24,6 +25,11 @@ struct TripCreationView: View {
                     TextField("Destination", text: $destination)
                     DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
                     DatePicker("End Date", selection: $endDate, in: startDate..., displayedComponents: .date)
+                    Picker("Reason", selection: $reason) {
+                        ForEach(TripReason.allCases) { reason in
+                            Text(reason.title).tag(reason)
+                        }
+                    }
                     Picker("Flying or Driving", selection: $mode) {
                         ForEach(TravelMode.allCases) { mode in
                             Text(mode.title).tag(mode)
@@ -45,7 +51,7 @@ struct TripCreationView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Create") {
-                        store.addTrip(name: tripName, destination: destination, startDate: startDate, endDate: endDate, mode: mode)
+                        store.addTrip(name: tripName, destination: destination, reason: reason, startDate: startDate, endDate: endDate, mode: mode)
                         dismiss()
                     }
                     .disabled(!canSave)

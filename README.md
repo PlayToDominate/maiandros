@@ -6,6 +6,7 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
 
 - Home screen with current trips, past trips placeholder, and trip cards
 - Trip creation flow (name, destination, start/end dates, flying/driving)
+- Trip creation flow (name, destination, reason, start/end dates, flying/driving)
 - Trip detail with:
   - Countdown section
   - Checklist with statuses (`Needs Action`, `Upcoming`, `In Progress`, `Complete`, `Optional/Skipped`)
@@ -27,6 +28,7 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
 
 - No backend, no login, no APIs
 - Passport validity helper computes `trip end date + 6 months` guidance
+- U.S. destination inference skips passport stress for likely domestic trips (for example NYC)
 - Flight checklist state starts as `Upcoming` when trip is far out
 
 ## Open In Xcode
