@@ -20,7 +20,12 @@ struct HomeView: View {
                         Text("Maiandros")
                             .font(.system(size: 36, weight: .bold, design: .rounded))
                         Spacer()
-                        MeanderBadge()
+                        NavigationLink {
+                            AboutMeanderView()
+                        } label: {
+                            MeanderBadge()
+                        }
+                        .buttonStyle(.plain)
                     }
                     Text("little steps now, easier travel later")
                         .font(.footnote.italic())
