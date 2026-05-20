@@ -27,15 +27,11 @@ struct TripDetailView: View {
         }
         .onChange(of: selectedPhotoItem) { _, newItem in
             guard let newItem else { return }
-            Task {
-                await importSelectedPhoto(newItem)
-            }
+            Task { await importTripAlbumImage(newItem) }
         }
         .onChange(of: selectedCabinetImageItem) { _, newItem in
             guard let newItem else { return }
-            Task {
-                await importCabinetImage(newItem)
-            }
+            Task { await importGlobalCabinetImage(newItem) }
         }
     }
 
@@ -71,7 +67,11 @@ struct TripDetailView: View {
                         } else if item.title == "Home Preparation" {
                             HomePreparationDetailView(trip: $trip, homeChecklistItemID: item.id)
                         } else {
-                            ChecklistItemDetailView(trip: $trip, checklistItemID: item.id)
+                            ChecklistItemDetailView(
+                                trip: $trip,
+                                checklistItemID: item.id,
+                                sectionTag: sectionTag(for: item.title)
+                            )
                         }
                     } label: {
                         checklistRow(for: item)
@@ -96,13 +96,40 @@ struct TripDetailView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Text(item.detail)
+            Text(summaryText(for: item))
                 .font(.footnote)
                 .foregroundStyle(MaiandrosTheme.secondaryText)
         }
         .padding(10)
         .background(MaiandrosTheme.cardAlt)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func summaryText(for item: ChecklistItem) -> String {
+        let tag = sectionTag(for: item.title)
+        guard let tag else { return item.detail }
+        let tagged = trip.cabinet.filter { $0.tags.contains(tag) }
+        guard let latest = tagged.first else { return item.detail }
+
+        switch tag {
+        case "flights": return "Saved flight info: \(latest.text)"
+        case "lodging": return "Saved lodging note: \(latest.text)"
+        case "transportation": return "Saved transport note: \(latest.text)"
+        case "passport": return "Saved passport note: \(latest.text)"
+        default: return latest.text
+        }
+    }
+
+    private func sectionTag(for title: String) -> String? {
+        switch title {
+        case "Verify Passport": return "passport"
+        case "Book Flights": return "flights"
+        case "Book Lodging": return "lodging"
+        case "Book Transportation": return "transportation"
+        case "Packing List": return "packing"
+        case "Home Preparation": return "home"
+        default: return nil
+        }
     }
 
     private var albumSection: some View {
@@ -131,23 +158,16 @@ struct TripDetailView: View {
                         HStack(spacing: 10) {
                             ForEach(trip.photos) { photo in
                                 VStack(spacing: 6) {
-                                    if let image = loadImage(fileName: photo.fileName) {
+                                    if let image = LocalImageStore.loadImage(fileName: photo.fileName) {
                                         Image(uiImage: image)
                                             .resizable()
                                             .scaledToFill()
                                             .frame(width: 110, height: 110)
                                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    } else {
-                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .fill(MaiandrosTheme.cardAlt)
-                                            .frame(width: 110, height: 110)
-                                            .overlay {
-                                                Image(systemName: "photo")
-                                                    .foregroundStyle(.secondary)
-                                            }
                                     }
                                     Button("Remove", role: .destructive) {
-                                        removePhoto(photo)
+                                        LocalImageStore.delete(fileName: photo.fileName)
+                                        trip.photos.removeAll { $0.id == photo.id }
                                     }
                                     .font(.caption)
                                 }
@@ -176,12 +196,9 @@ struct TripDetailView: View {
                     Label("Attach Screenshot / Photo", systemImage: "paperclip")
                 }
                 Button("Save to Cabinet") {
-                    let text = newCabinetText.trimmingCharacters(in: .whitespaces)
+                    let text = newCabinetText.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !text.isEmpty else { return }
-                    let tags = newCabinetTags
-                        .split(separator: ",")
-                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-                        .filter { !$0.isEmpty }
+                    let tags = parseTags(newCabinetTags)
                     trip.cabinet.insert(CabinetEntry(text: text, tags: tags), at: 0)
                     newCabinetText = ""
                     newCabinetTags = ""
@@ -195,38 +212,46 @@ struct TripDetailView: View {
                 }
 
                 ForEach(trip.cabinet) { entry in
-                    VStack(alignment: .leading, spacing: 6) {
-                        if let imageFileName = entry.imageFileName, let image = loadImage(fileName: imageFileName) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(height: 160)
-                                .frame(maxWidth: .infinity)
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        }
-                        Text(entry.text)
-                        if !entry.tags.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack {
-                                    ForEach(entry.tags, id: \.self) { tag in
-                                        Text("#\(tag)")
-                                            .font(.caption)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(MaiandrosTheme.cardAlt)
-                                            .clipShape(Capsule())
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(MaiandrosTheme.cardAlt)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    CabinetEntryCard(entry: entry)
                 }
             }
         }
+    }
+
+    private func parseTags(_ raw: String) -> [String] {
+        raw.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty }
+    }
+
+    private func importTripAlbumImage(_ item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data),
+              let jpegData = image.jpegData(compressionQuality: 0.85),
+              let fileName = LocalImageStore.save(jpegData: jpegData, prefix: "trip-photo") else {
+            selectedPhotoItem = nil
+            return
+        }
+
+        trip.photos.insert(TripPhoto(fileName: fileName), at: 0)
+        selectedPhotoItem = nil
+    }
+
+    private func importGlobalCabinetImage(_ item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data),
+              let jpegData = image.jpegData(compressionQuality: 0.85),
+              let fileName = LocalImageStore.save(jpegData: jpegData, prefix: "cabinet-photo") else {
+            selectedCabinetImageItem = nil
+            return
+        }
+
+        let text = newCabinetText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tags = parseTags(newCabinetTags)
+        trip.cabinet.insert(CabinetEntry(text: text.isEmpty ? "Screenshot / photo attachment" : text, tags: tags, imageFileName: fileName), at: 0)
+        newCabinetText = ""
+        newCabinetTags = ""
+        selectedCabinetImageItem = nil
     }
 
     private func icon(for status: ChecklistStatus) -> String {
@@ -248,73 +273,53 @@ struct TripDetailView: View {
         case .skipped: return .gray
         }
     }
+}
 
-    private func importSelectedPhoto(_ item: PhotosPickerItem) async {
-        guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-        guard let image = UIImage(data: data) else { return }
-        guard let jpegData = image.jpegData(compressionQuality: 0.85) else { return }
+private struct CabinetEntryCard: View {
+    let entry: CabinetEntry
 
-        let fileName = "trip-photo-\(UUID().uuidString).jpg"
-        let url = photoDirectoryURL().appendingPathComponent(fileName)
-        do {
-            try FileManager.default.createDirectory(at: photoDirectoryURL(), withIntermediateDirectories: true, attributes: nil)
-            try jpegData.write(to: url, options: [.atomic])
-            trip.photos.insert(TripPhoto(fileName: fileName), at: 0)
-            selectedPhotoItem = nil
-        } catch {
-            selectedPhotoItem = nil
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let imageFileName = entry.imageFileName, let image = LocalImageStore.loadImage(fileName: imageFileName) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 160)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            Text(entry.text)
+            if !entry.tags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(entry.tags, id: \.self) { tag in
+                            Text("#\(tag)")
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(MaiandrosTheme.cardAlt)
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+            }
         }
-    }
-
-    private func importCabinetImage(_ item: PhotosPickerItem) async {
-        guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-        guard let image = UIImage(data: data) else { return }
-        guard let jpegData = image.jpegData(compressionQuality: 0.85) else { return }
-
-        let fileName = "cabinet-photo-\(UUID().uuidString).jpg"
-        let url = photoDirectoryURL().appendingPathComponent(fileName)
-        do {
-            try FileManager.default.createDirectory(at: photoDirectoryURL(), withIntermediateDirectories: true, attributes: nil)
-            try jpegData.write(to: url, options: [.atomic])
-            let fallbackText = "Screenshot / photo attachment"
-            let text = newCabinetText.trimmingCharacters(in: .whitespacesAndNewlines)
-            let tags = newCabinetTags
-                .split(separator: ",")
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-                .filter { !$0.isEmpty }
-            trip.cabinet.insert(CabinetEntry(text: text.isEmpty ? fallbackText : text, tags: tags, imageFileName: fileName), at: 0)
-            newCabinetText = ""
-            newCabinetTags = ""
-            selectedCabinetImageItem = nil
-        } catch {
-            selectedCabinetImageItem = nil
-        }
-    }
-
-    private func removePhoto(_ photo: TripPhoto) {
-        let url = photoDirectoryURL().appendingPathComponent(photo.fileName)
-        try? FileManager.default.removeItem(at: url)
-        trip.photos.removeAll { $0.id == photo.id }
-    }
-
-    private func loadImage(fileName: String) -> UIImage? {
-        let url = photoDirectoryURL().appendingPathComponent(fileName)
-        return UIImage(contentsOfFile: url.path)
-    }
-
-    private func photoDirectoryURL() -> URL {
-        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return docs.appendingPathComponent("maiandros-trip-photos")
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MaiandrosTheme.cardAlt)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
 private struct ChecklistItemDetailView: View {
     @Binding var trip: Trip
     let checklistItemID: UUID
+    let sectionTag: String?
+    @State private var sectionNote = ""
+    @State private var sectionTags = ""
+    @State private var selectedSectionImageItem: PhotosPickerItem?
 
-    private var itemIndex: Int? {
-        trip.checklist.firstIndex(where: { $0.id == checklistItemID })
-    }
+    private var itemIndex: Int? { trip.checklist.firstIndex(where: { $0.id == checklistItemID }) }
 
     var body: some View {
         Form {
@@ -332,6 +337,29 @@ private struct ChecklistItemDetailView: View {
                         .lineLimit(2...5)
                 }
 
+                if let sectionTag {
+                    Section("Section Cabinet") {
+                        TextField("Add a note for this section", text: $sectionNote)
+                        TextField("Extra tags (comma separated)", text: $sectionTags)
+                        PhotosPicker(selection: $selectedSectionImageItem, matching: .images) {
+                            Label("Attach Screenshot / Photo", systemImage: "paperclip")
+                        }
+                        Button("Save to Cabinet") {
+                            let text = sectionNote.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !text.isEmpty else { return }
+                            var tags = parseTags(sectionTags)
+                            tags.append(sectionTag)
+                            trip.cabinet.insert(CabinetEntry(text: text, tags: Array(Set(tags))), at: 0)
+                            sectionNote = ""
+                            sectionTags = ""
+                        }
+
+                        ForEach(trip.cabinet.filter { $0.tags.contains(sectionTag) }) { entry in
+                            CabinetEntryCard(entry: entry)
+                        }
+                    }
+                }
+
                 Section("Meander Tips") {
                     Text(contextualTip(for: trip.checklist[itemIndex].title))
                         .font(.footnote)
@@ -340,26 +368,47 @@ private struct ChecklistItemDetailView: View {
             }
         }
         .navigationTitle(itemTitle)
+        .onChange(of: selectedSectionImageItem) { _, newItem in
+            guard let newItem, let sectionTag else { return }
+            Task { await saveSectionImage(item: newItem, sectionTag: sectionTag) }
+        }
     }
 
     private var itemTitle: String {
         trip.checklist.first(where: { $0.id == checklistItemID })?.title ?? "Checklist Item"
     }
 
+    private func parseTags(_ raw: String) -> [String] {
+        raw.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty }
+    }
+
+    private func saveSectionImage(item: PhotosPickerItem, sectionTag: String) async {
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data),
+              let jpegData = image.jpegData(compressionQuality: 0.85),
+              let fileName = LocalImageStore.save(jpegData: jpegData, prefix: "cabinet-photo") else {
+            selectedSectionImageItem = nil
+            return
+        }
+
+        let text = sectionNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        var tags = parseTags(sectionTags)
+        tags.append(sectionTag)
+        trip.cabinet.insert(CabinetEntry(text: text.isEmpty ? "Section screenshot / photo" : text, tags: Array(Set(tags)), imageFileName: fileName), at: 0)
+        sectionNote = ""
+        sectionTags = ""
+        selectedSectionImageItem = nil
+    }
+
     private func contextualTip(for title: String) -> String {
         switch title {
-        case "Verify Passport":
-            return "If this trip stays in the U.S., you can mark it skipped and exhale."
-        case "Book Flights":
-            return "A tiny goblin nudge: set one fare check reminder and walk away."
-        case "Book Lodging":
-            return "Pick your top 2 neighborhoods first, then compare stays there."
-        case "Book Transportation":
-            return "Only book this if the trip rhythm actually needs it."
-        case "Home Preparation":
-            return "Future-you will love simple wins: trash, thermostat, chargers, plants."
-        default:
-            return "Small steps count. Meander is keeping watch with you."
+        case "Verify Passport": return "If this trip stays in the U.S., you can mark it skipped and exhale."
+        case "Book Flights": return "Add flight number and airline here so your summary stays useful."
+        case "Book Lodging": return "Save confirmation numbers and check-in notes right in this section."
+        case "Book Transportation": return "Store rental pickup info or train details here for quick access."
+        default: return "Small steps count. Meander is keeping watch with you."
         }
     }
 }
@@ -369,6 +418,9 @@ private struct HomePreparationDetailView: View {
     let homeChecklistItemID: UUID
     @State private var newHomeTask = ""
     @State private var isManualStatusOverride = false
+    @State private var sectionNote = ""
+    @State private var sectionTags = ""
+    @State private var selectedSectionImageItem: PhotosPickerItem?
 
     private var doneCount: Int { trip.homePreparation.filter(\.isDone).count }
 
@@ -385,14 +437,8 @@ private struct HomePreparationDetailView: View {
             Section("Tasks") {
                 ForEach($trip.homePreparation) { $task in
                     HStack {
-                        Toggle(isOn: $task.isDone) {
-                            Text(task.name)
-                        }
-                        Button(role: .destructive) {
-                            removeTask(task.id)
-                        } label: {
-                            Image(systemName: "trash")
-                        }
+                        Toggle(isOn: $task.isDone) { Text(task.name) }
+                        Button(role: .destructive) { removeTask(task.id) } label: { Image(systemName: "trash") }
                     }
                 }
 
@@ -403,18 +449,14 @@ private struct HomePreparationDetailView: View {
                         guard !item.isEmpty else { return }
                         trip.homePreparation.append(HomePrepItem(name: item))
                         newHomeTask = ""
-                        if !isManualStatusOverride {
-                            syncChecklistToHomePrepProgress()
-                        }
+                        if !isManualStatusOverride { syncChecklistToHomePrepProgress() }
                     }
                 }
             }
 
             Section("Home Preparation Status") {
                 Picker("Status", selection: homeStatusBinding) {
-                    ForEach(ChecklistStatus.allCases, id: \.self) { status in
-                        Text(status.label).tag(status)
-                    }
+                    ForEach(ChecklistStatus.allCases, id: \.self) { status in Text(status.label).tag(status) }
                 }
                 if isManualStatusOverride {
                     Button("Use Automatic Status Again") {
@@ -423,20 +465,38 @@ private struct HomePreparationDetailView: View {
                     }
                 }
             }
+
+            Section("Section Cabinet") {
+                TextField("Add home prep note", text: $sectionNote)
+                TextField("Extra tags (comma separated)", text: $sectionTags)
+                PhotosPicker(selection: $selectedSectionImageItem, matching: .images) {
+                    Label("Attach Screenshot / Photo", systemImage: "paperclip")
+                }
+                Button("Save to Cabinet") {
+                    let text = sectionNote.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !text.isEmpty else { return }
+                    var tags = parseTags(sectionTags)
+                    tags.append("home")
+                    trip.cabinet.insert(CabinetEntry(text: text, tags: Array(Set(tags))), at: 0)
+                    sectionNote = ""
+                    sectionTags = ""
+                }
+                ForEach(trip.cabinet.filter { $0.tags.contains("home") }) { entry in
+                    CabinetEntryCard(entry: entry)
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(MaiandrosTheme.background)
         .navigationTitle("Home Preparation")
-        .onAppear {
-            if !isManualStatusOverride {
-                syncChecklistToHomePrepProgress()
-            }
-        }
+        .onAppear { if !isManualStatusOverride { syncChecklistToHomePrepProgress() } }
         .onChange(of: trip.homePreparation) { _, _ in
-            if !isManualStatusOverride {
-                syncChecklistToHomePrepProgress()
-            }
+            if !isManualStatusOverride { syncChecklistToHomePrepProgress() }
+        }
+        .onChange(of: selectedSectionImageItem) { _, newItem in
+            guard let newItem else { return }
+            Task { await saveSectionImage(item: newItem) }
         }
     }
 
@@ -470,6 +530,29 @@ private struct HomePreparationDetailView: View {
             trip.checklist[idx].detail = "\(done)/\(total) home tasks done. Calm and steady."
         }
     }
+
+    private func parseTags(_ raw: String) -> [String] {
+        raw.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty }
+    }
+
+    private func saveSectionImage(item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data),
+              let jpegData = image.jpegData(compressionQuality: 0.85),
+              let fileName = LocalImageStore.save(jpegData: jpegData, prefix: "cabinet-photo") else {
+            selectedSectionImageItem = nil
+            return
+        }
+        let text = sectionNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        var tags = parseTags(sectionTags)
+        tags.append("home")
+        trip.cabinet.insert(CabinetEntry(text: text.isEmpty ? "Home preparation attachment" : text, tags: Array(Set(tags)), imageFileName: fileName), at: 0)
+        sectionNote = ""
+        sectionTags = ""
+        selectedSectionImageItem = nil
+    }
 }
 
 private struct PackingListDetailView: View {
@@ -477,6 +560,9 @@ private struct PackingListDetailView: View {
     let packingChecklistItemID: UUID
     @State private var newPackingItem = ""
     @State private var isManualStatusOverride = false
+    @State private var sectionNote = ""
+    @State private var sectionTags = ""
+    @State private var selectedSectionImageItem: PhotosPickerItem?
 
     private var packedCount: Int { trip.packing.filter(\.isPacked).count }
 
@@ -493,14 +579,8 @@ private struct PackingListDetailView: View {
             Section("Items") {
                 ForEach($trip.packing) { $item in
                     HStack {
-                        Toggle(isOn: $item.isPacked) {
-                            Text(item.name)
-                        }
-                        Button(role: .destructive) {
-                            removePacking(item.id)
-                        } label: {
-                            Image(systemName: "trash")
-                        }
+                        Toggle(isOn: $item.isPacked) { Text(item.name) }
+                        Button(role: .destructive) { removePacking(item.id) } label: { Image(systemName: "trash") }
                     }
                 }
 
@@ -511,18 +591,14 @@ private struct PackingListDetailView: View {
                         guard !item.isEmpty else { return }
                         trip.packing.append(PackingItem(name: item))
                         newPackingItem = ""
-                        if !isManualStatusOverride {
-                            syncChecklistToPackingProgress()
-                        }
+                        if !isManualStatusOverride { syncChecklistToPackingProgress() }
                     }
                 }
             }
 
             Section("Packing Checklist Status") {
                 Picker("Status", selection: packingStatusBinding) {
-                    ForEach(ChecklistStatus.allCases, id: \.self) { status in
-                        Text(status.label).tag(status)
-                    }
+                    ForEach(ChecklistStatus.allCases, id: \.self) { status in Text(status.label).tag(status) }
                 }
                 if isManualStatusOverride {
                     Button("Use Automatic Status Again") {
@@ -531,20 +607,38 @@ private struct PackingListDetailView: View {
                     }
                 }
             }
+
+            Section("Section Cabinet") {
+                TextField("Add packing note", text: $sectionNote)
+                TextField("Extra tags (comma separated)", text: $sectionTags)
+                PhotosPicker(selection: $selectedSectionImageItem, matching: .images) {
+                    Label("Attach Screenshot / Photo", systemImage: "paperclip")
+                }
+                Button("Save to Cabinet") {
+                    let text = sectionNote.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !text.isEmpty else { return }
+                    var tags = parseTags(sectionTags)
+                    tags.append("packing")
+                    trip.cabinet.insert(CabinetEntry(text: text, tags: Array(Set(tags))), at: 0)
+                    sectionNote = ""
+                    sectionTags = ""
+                }
+                ForEach(trip.cabinet.filter { $0.tags.contains("packing") }) { entry in
+                    CabinetEntryCard(entry: entry)
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(MaiandrosTheme.background)
         .navigationTitle("Packing List")
-        .onAppear {
-            if !isManualStatusOverride {
-                syncChecklistToPackingProgress()
-            }
-        }
+        .onAppear { if !isManualStatusOverride { syncChecklistToPackingProgress() } }
         .onChange(of: trip.packing) { _, _ in
-            if !isManualStatusOverride {
-                syncChecklistToPackingProgress()
-            }
+            if !isManualStatusOverride { syncChecklistToPackingProgress() }
+        }
+        .onChange(of: selectedSectionImageItem) { _, newItem in
+            guard let newItem else { return }
+            Task { await saveSectionImage(item: newItem) }
         }
     }
 
@@ -568,7 +662,6 @@ private struct PackingListDetailView: View {
 
     private func syncChecklistToPackingProgress() {
         guard let idx = trip.checklist.firstIndex(where: { $0.id == packingChecklistItemID }) else { return }
-
         let total = trip.packing.count
         let packed = packedCount
 
@@ -579,5 +672,55 @@ private struct PackingListDetailView: View {
             trip.checklist[idx].status = .inProgress
             trip.checklist[idx].detail = "\(packed)/\(total) packed. Slow and steady, cozy traveler."
         }
+    }
+
+    private func parseTags(_ raw: String) -> [String] {
+        raw.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty }
+    }
+
+    private func saveSectionImage(item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data),
+              let jpegData = image.jpegData(compressionQuality: 0.85),
+              let fileName = LocalImageStore.save(jpegData: jpegData, prefix: "cabinet-photo") else {
+            selectedSectionImageItem = nil
+            return
+        }
+        let text = sectionNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        var tags = parseTags(sectionTags)
+        tags.append("packing")
+        trip.cabinet.insert(CabinetEntry(text: text.isEmpty ? "Packing attachment" : text, tags: Array(Set(tags)), imageFileName: fileName), at: 0)
+        sectionNote = ""
+        sectionTags = ""
+        selectedSectionImageItem = nil
+    }
+}
+
+private enum LocalImageStore {
+    static func directoryURL() -> URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return docs.appendingPathComponent("maiandros-trip-photos")
+    }
+
+    static func save(jpegData: Data, prefix: String) -> String? {
+        let fileName = "\(prefix)-\(UUID().uuidString).jpg"
+        let url = directoryURL().appendingPathComponent(fileName)
+        do {
+            try FileManager.default.createDirectory(at: directoryURL(), withIntermediateDirectories: true, attributes: nil)
+            try jpegData.write(to: url, options: [.atomic])
+            return fileName
+        } catch {
+            return nil
+        }
+    }
+
+    static func loadImage(fileName: String) -> UIImage? {
+        UIImage(contentsOfFile: directoryURL().appendingPathComponent(fileName).path)
+    }
+
+    static func delete(fileName: String) {
+        try? FileManager.default.removeItem(at: directoryURL().appendingPathComponent(fileName))
     }
 }
