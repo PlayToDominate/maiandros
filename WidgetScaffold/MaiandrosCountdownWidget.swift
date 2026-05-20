@@ -1,6 +1,24 @@
 import WidgetKit
 import SwiftUI
 
+private struct WidgetTripSnapshot: Codable {
+    let tripName: String
+    let destination: String
+    let startDate: Date
+    let daysUntil: Int
+}
+
+private enum WidgetSnapshotStore {
+    static let appGroupID = "group.com.playtodominate.maiandros"
+    static let nextTripKey = "maiandros.widget.nextTrip"
+
+    static func loadNextTrip() -> WidgetTripSnapshot? {
+        guard let defaults = UserDefaults(suiteName: appGroupID),
+              let data = defaults.data(forKey: nextTripKey) else { return nil }
+        return try? JSONDecoder().decode(WidgetTripSnapshot.self, from: data)
+    }
+}
+
 struct MaiandrosCountdownEntry: TimelineEntry {
     let date: Date
     let tripName: String
@@ -18,8 +36,18 @@ struct MaiandrosCountdownProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<MaiandrosCountdownEntry>) -> Void) {
-        // TODO: Read next trip from shared App Group store (see WidgetScaffold/README.md).
-        let entry = placeholder(in: context)
+        let entry: MaiandrosCountdownEntry
+        if let snapshot = WidgetSnapshotStore.loadNextTrip() {
+            entry = MaiandrosCountdownEntry(
+                date: Date(),
+                tripName: snapshot.tripName,
+                destination: snapshot.destination,
+                daysUntil: max(0, snapshot.daysUntil)
+            )
+        } else {
+            entry = MaiandrosCountdownEntry(date: Date(), tripName: "No Trips Yet", destination: "somewhere cozy", daysUntil: 0)
+        }
+
         let nextRefresh = Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date().addingTimeInterval(3600)
         completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
     }
@@ -45,7 +73,7 @@ struct MaiandrosCountdownWidgetView: View {
                     .foregroundStyle(.secondary)
                 Text("\(entry.daysUntil)")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
-                Text("days until \(entry.destination)")
+                Text(entry.tripName == "No Trips Yet" ? "Start planning a trip" : "days until \(entry.destination)")
                     .font(.footnote)
                     .lineLimit(2)
             }
