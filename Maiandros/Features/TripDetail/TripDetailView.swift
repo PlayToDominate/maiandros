@@ -8,6 +8,7 @@ struct TripDetailView: View {
     @State private var newCabinetText = ""
     @State private var newCabinetTags = ""
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedCabinetImageItem: PhotosPickerItem?
 
     var body: some View {
         ScrollView {
@@ -28,6 +29,12 @@ struct TripDetailView: View {
             guard let newItem else { return }
             Task {
                 await importSelectedPhoto(newItem)
+            }
+        }
+        .onChange(of: selectedCabinetImageItem) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                await importCabinetImage(newItem)
             }
         }
     }
@@ -61,6 +68,8 @@ struct TripDetailView: View {
                     NavigationLink {
                         if item.title == "Packing List" {
                             PackingListDetailView(trip: $trip, packingChecklistItemID: item.id)
+                        } else if item.title == "Home Preparation" {
+                            HomePreparationDetailView(trip: $trip, homeChecklistItemID: item.id)
                         } else {
                             ChecklistItemDetailView(trip: $trip, checklistItemID: item.id)
                         }
@@ -163,6 +172,9 @@ struct TripDetailView: View {
                     .textFieldStyle(.roundedBorder)
                 TextField("Tags (comma separated)", text: $newCabinetTags)
                     .textFieldStyle(.roundedBorder)
+                PhotosPicker(selection: $selectedCabinetImageItem, matching: .images) {
+                    Label("Attach Screenshot / Photo", systemImage: "paperclip")
+                }
                 Button("Save to Cabinet") {
                     let text = newCabinetText.trimmingCharacters(in: .whitespaces)
                     guard !text.isEmpty else { return }
@@ -184,6 +196,14 @@ struct TripDetailView: View {
 
                 ForEach(trip.cabinet) { entry in
                     VStack(alignment: .leading, spacing: 6) {
+                        if let imageFileName = entry.imageFileName, let image = loadImage(fileName: imageFileName) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(height: 160)
+                                .frame(maxWidth: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
                         Text(entry.text)
                         if !entry.tags.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
@@ -243,6 +263,31 @@ struct TripDetailView: View {
             selectedPhotoItem = nil
         } catch {
             selectedPhotoItem = nil
+        }
+    }
+
+    private func importCabinetImage(_ item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+        guard let image = UIImage(data: data) else { return }
+        guard let jpegData = image.jpegData(compressionQuality: 0.85) else { return }
+
+        let fileName = "cabinet-photo-\(UUID().uuidString).jpg"
+        let url = photoDirectoryURL().appendingPathComponent(fileName)
+        do {
+            try FileManager.default.createDirectory(at: photoDirectoryURL(), withIntermediateDirectories: true, attributes: nil)
+            try jpegData.write(to: url, options: [.atomic])
+            let fallbackText = "Screenshot / photo attachment"
+            let text = newCabinetText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let tags = newCabinetTags
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                .filter { !$0.isEmpty }
+            trip.cabinet.insert(CabinetEntry(text: text.isEmpty ? fallbackText : text, tags: tags, imageFileName: fileName), at: 0)
+            newCabinetText = ""
+            newCabinetTags = ""
+            selectedCabinetImageItem = nil
+        } catch {
+            selectedCabinetImageItem = nil
         }
     }
 
@@ -315,6 +360,114 @@ private struct ChecklistItemDetailView: View {
             return "Future-you will love simple wins: trash, thermostat, chargers, plants."
         default:
             return "Small steps count. Meander is keeping watch with you."
+        }
+    }
+}
+
+private struct HomePreparationDetailView: View {
+    @Binding var trip: Trip
+    let homeChecklistItemID: UUID
+    @State private var newHomeTask = ""
+    @State private var isManualStatusOverride = false
+
+    private var doneCount: Int { trip.homePreparation.filter(\.isDone).count }
+
+    var body: some View {
+        List {
+            Section {
+                Text("\(doneCount)/\(trip.homePreparation.count) home prep tasks done")
+                    .foregroundStyle(MaiandrosTheme.secondaryText)
+                Text("Tiny goblin reminder: future-you will be so grateful for these.")
+                    .font(.footnote)
+                    .foregroundStyle(MaiandrosTheme.secondaryText)
+            }
+
+            Section("Tasks") {
+                ForEach($trip.homePreparation) { $task in
+                    HStack {
+                        Toggle(isOn: $task.isDone) {
+                            Text(task.name)
+                        }
+                        Button(role: .destructive) {
+                            removeTask(task.id)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                    }
+                }
+
+                HStack {
+                    TextField("Add task", text: $newHomeTask)
+                    Button("Add") {
+                        let item = newHomeTask.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !item.isEmpty else { return }
+                        trip.homePreparation.append(HomePrepItem(name: item))
+                        newHomeTask = ""
+                        if !isManualStatusOverride {
+                            syncChecklistToHomePrepProgress()
+                        }
+                    }
+                }
+            }
+
+            Section("Home Preparation Status") {
+                Picker("Status", selection: homeStatusBinding) {
+                    ForEach(ChecklistStatus.allCases, id: \.self) { status in
+                        Text(status.label).tag(status)
+                    }
+                }
+                if isManualStatusOverride {
+                    Button("Use Automatic Status Again") {
+                        isManualStatusOverride = false
+                        syncChecklistToHomePrepProgress()
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(MaiandrosTheme.background)
+        .navigationTitle("Home Preparation")
+        .onAppear {
+            if !isManualStatusOverride {
+                syncChecklistToHomePrepProgress()
+            }
+        }
+        .onChange(of: trip.homePreparation) { _, _ in
+            if !isManualStatusOverride {
+                syncChecklistToHomePrepProgress()
+            }
+        }
+    }
+
+    private var homeStatusBinding: Binding<ChecklistStatus> {
+        Binding {
+            homeChecklistItem?.status ?? .inProgress
+        } set: { newStatus in
+            guard let idx = trip.checklist.firstIndex(where: { $0.id == homeChecklistItemID }) else { return }
+            trip.checklist[idx].status = newStatus
+            isManualStatusOverride = true
+        }
+    }
+
+    private var homeChecklistItem: ChecklistItem? {
+        trip.checklist.first(where: { $0.id == homeChecklistItemID })
+    }
+
+    private func removeTask(_ id: UUID) {
+        trip.homePreparation.removeAll { $0.id == id }
+    }
+
+    private func syncChecklistToHomePrepProgress() {
+        guard let idx = trip.checklist.firstIndex(where: { $0.id == homeChecklistItemID }) else { return }
+        let total = trip.homePreparation.count
+        let done = doneCount
+        if total > 0 && done == total {
+            trip.checklist[idx].status = .complete
+            trip.checklist[idx].detail = "Home is squared away. Meander approves this peaceful launch."
+        } else {
+            trip.checklist[idx].status = .inProgress
+            trip.checklist[idx].detail = "\(done)/\(total) home tasks done. Calm and steady."
         }
     }
 }
