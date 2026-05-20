@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var store: TripStore
     @State private var showingCreate = false
+    @State private var showingAboutMeander = false
 
     var currentTrips: [Trip] {
         store.trips.filter { !$0.isPast }.sorted { $0.startDate < $1.startDate }
@@ -20,8 +21,8 @@ struct HomeView: View {
                         Text("Maiandros")
                             .font(.system(size: 36, weight: .bold, design: .rounded))
                         Spacer()
-                        NavigationLink {
-                            AboutMeanderView()
+                        Button {
+                            showingAboutMeander = true
                         } label: {
                             MeanderBadge()
                         }
@@ -115,6 +116,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingCreate) {
                 TripCreationView()
+            }
+            .navigationDestination(isPresented: $showingAboutMeander) {
+                AboutMeanderView()
             }
         }
     }

@@ -28,6 +28,17 @@ struct AboutMeanderView: View {
 
                 CozyCard {
                     VStack(alignment: .leading, spacing: 10) {
+                        Text("About Maiandros")
+                            .font(.headline)
+                        Text("Maiandros is the parent of the word “meander,” which is all about wandering paths and river bends.")
+                            .foregroundStyle(MaiandrosTheme.secondaryText)
+                        Text("In Greek tradition, Maiandros is also connected to the River Meander.")
+                            .foregroundStyle(MaiandrosTheme.secondaryText)
+                    }
+                }
+
+                CozyCard {
+                    VStack(alignment: .leading, spacing: 10) {
                         Text("App Philosophy")
                             .font(.headline)
                         Text("little steps now, easier travel later")
