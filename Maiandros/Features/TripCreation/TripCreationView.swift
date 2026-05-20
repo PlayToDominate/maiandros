@@ -1,8 +1,10 @@
+import MapKit
 import SwiftUI
 
 struct TripCreationView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: TripStore
+    @StateObject private var autocomplete = DestinationAutocompleteViewModel()
 
     @State private var tripName = ""
     @State private var destination = ""
@@ -23,6 +25,29 @@ struct TripCreationView: View {
                 Section("Trip Basics") {
                     TextField("Trip Name", text: $tripName)
                     TextField("Destination", text: $destination)
+                        .onChange(of: destination) { _, newValue in
+                            autocomplete.update(query: newValue)
+                        }
+
+                    if !autocomplete.suggestions.isEmpty && !destination.isEmpty {
+                        ForEach(autocomplete.suggestions) { suggestion in
+                            Button {
+                                destination = suggestion.displayText
+                                autocomplete.clear()
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(suggestion.title)
+                                        .foregroundStyle(.primary)
+                                    if !suggestion.subtitle.isEmpty {
+                                        Text(suggestion.subtitle)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
                     DatePicker("End Date", selection: $endDate, in: startDate..., displayedComponents: .date)
                     Picker("Reason", selection: $reason) {
@@ -59,5 +84,50 @@ struct TripCreationView: View {
             }
         }
         .presentationDetents([.large])
+    }
+}
+
+struct DestinationSuggestion: Identifiable {
+    let id = UUID()
+    let title: String
+    let subtitle: String
+
+    var displayText: String {
+        subtitle.isEmpty ? title : "\(title), \(subtitle)"
+    }
+}
+
+final class DestinationAutocompleteViewModel: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
+    @Published var suggestions: [DestinationSuggestion] = []
+
+    private let completer = MKLocalSearchCompleter()
+
+    override init() {
+        super.init()
+        completer.delegate = self
+        completer.resultTypes = [.address, .pointOfInterest]
+    }
+
+    func update(query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.count < 2 {
+            suggestions = []
+            return
+        }
+        completer.queryFragment = trimmed
+    }
+
+    func clear() {
+        suggestions = []
+    }
+
+    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        suggestions = completer.results.prefix(6).map {
+            DestinationSuggestion(title: $0.title, subtitle: $0.subtitle)
+        }
+    }
+
+    func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        suggestions = []
     }
 }
