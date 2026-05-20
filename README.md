@@ -9,9 +9,10 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
 - Trip creation flow (name, destination, reason, start/end dates, flying/driving)
 - Trip detail with:
   - Countdown section
-  - Checklist with statuses (`Needs Action`, `Upcoming`, `In Progress`, `Complete`, `Optional/Skipped`)
-  - Editable packing list with progress
+  - Checklist with statuses (`Needs Action`, `Upcoming`, `In Progress`, `Complete`, `Optional/Skipped`) and per-item detail screens
+  - Dedicated packing detail screen with auto progress-to-status sync
   - Cabinet notes with flexible tags
+  - Trip Album for local photos/screenshots
 - Local persistence using JSON in app Documents
 - Warm/cozy copy tone with subtle Meander mascot references
 

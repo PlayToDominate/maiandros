@@ -1,16 +1,20 @@
+import PhotosUI
 import SwiftUI
+import UIKit
 
 struct TripDetailView: View {
     @EnvironmentObject private var store: TripStore
     @State var trip: Trip
     @State private var newCabinetText = ""
     @State private var newCabinetTags = ""
+    @State private var selectedPhotoItem: PhotosPickerItem?
 
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
                 countdownSection
                 checklistSection
+                albumSection
                 cabinetSection
             }
             .padding()
@@ -19,6 +23,12 @@ struct TripDetailView: View {
         .navigationTitle(trip.name)
         .onChange(of: trip) { _, updated in
             store.update(updated)
+        }
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                await importSelectedPhoto(newItem)
+            }
         }
     }
 
@@ -48,42 +58,34 @@ struct TripDetailView: View {
                     .font(.headline)
 
                 ForEach(trip.checklist) { item in
-                    if item.title == "Packing List" {
-                        NavigationLink {
+                    NavigationLink {
+                        if item.title == "Packing List" {
                             PackingListDetailView(trip: $trip, packingChecklistItemID: item.id)
-                        } label: {
-                            checklistRow(for: item, showChevron: true)
+                        } else {
+                            ChecklistItemDetailView(trip: $trip, checklistItemID: item.id)
                         }
-                        .buttonStyle(.plain)
-                    } else {
-                        checklistRow(for: item, showChevron: false)
+                    } label: {
+                        checklistRow(for: item)
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
     }
 
-    private func checklistRow(for item: ChecklistItem, showChevron: Bool) -> some View {
+    private func checklistRow(for item: ChecklistItem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Image(systemName: icon(for: item.status))
                     .foregroundStyle(color(for: item.status))
                 Text(item.title).fontWeight(.semibold)
                 Spacer()
-                if showChevron {
-                    Text(item.status.label)
-                        .font(.footnote)
-                        .foregroundStyle(MaiandrosTheme.secondaryText)
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Menu(item.status.label) {
-                        ForEach(ChecklistStatus.allCases, id: \.self) { status in
-                            Button(status.label) { updateChecklist(item, status: status) }
-                        }
-                    }
-                }
+                Text(item.status.label)
+                    .font(.footnote)
+                    .foregroundStyle(MaiandrosTheme.secondaryText)
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Text(item.detail)
                 .font(.footnote)
@@ -92,6 +94,60 @@ struct TripDetailView: View {
         .padding(10)
         .background(MaiandrosTheme.cardAlt)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var albumSection: some View {
+        CozyCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Trip Album")
+                            .font(.headline)
+                        Text("Screenshots, ticket snaps, little travel memories.")
+                            .font(.footnote)
+                            .foregroundStyle(MaiandrosTheme.secondaryText)
+                    }
+                    Spacer()
+                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                        Label("Add", systemImage: "photo.badge.plus")
+                    }
+                }
+
+                if trip.photos.isEmpty {
+                    Text("No photos yet. Meander can collect your trip breadcrumbs here.")
+                        .font(.footnote)
+                        .foregroundStyle(MaiandrosTheme.secondaryText)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(trip.photos) { photo in
+                                VStack(spacing: 6) {
+                                    if let image = loadImage(fileName: photo.fileName) {
+                                        Image(uiImage: image)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 110, height: 110)
+                                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .fill(MaiandrosTheme.cardAlt)
+                                            .frame(width: 110, height: 110)
+                                            .overlay {
+                                                Image(systemName: "photo")
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                    }
+                                    Button("Remove", role: .destructive) {
+                                        removePhoto(photo)
+                                    }
+                                    .font(.caption)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private var cabinetSection: some View {
@@ -153,11 +209,6 @@ struct TripDetailView: View {
         }
     }
 
-    private func updateChecklist(_ item: ChecklistItem, status: ChecklistStatus) {
-        guard let index = trip.checklist.firstIndex(where: { $0.id == item.id }) else { return }
-        trip.checklist[index].status = status
-    }
-
     private func icon(for status: ChecklistStatus) -> String {
         switch status {
         case .needsAction: return "exclamationmark.circle.fill"
@@ -177,12 +228,102 @@ struct TripDetailView: View {
         case .skipped: return .gray
         }
     }
+
+    private func importSelectedPhoto(_ item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+        guard let image = UIImage(data: data) else { return }
+        guard let jpegData = image.jpegData(compressionQuality: 0.85) else { return }
+
+        let fileName = "trip-photo-\(UUID().uuidString).jpg"
+        let url = photoDirectoryURL().appendingPathComponent(fileName)
+        do {
+            try FileManager.default.createDirectory(at: photoDirectoryURL(), withIntermediateDirectories: true, attributes: nil)
+            try jpegData.write(to: url, options: [.atomic])
+            trip.photos.insert(TripPhoto(fileName: fileName), at: 0)
+            selectedPhotoItem = nil
+        } catch {
+            selectedPhotoItem = nil
+        }
+    }
+
+    private func removePhoto(_ photo: TripPhoto) {
+        let url = photoDirectoryURL().appendingPathComponent(photo.fileName)
+        try? FileManager.default.removeItem(at: url)
+        trip.photos.removeAll { $0.id == photo.id }
+    }
+
+    private func loadImage(fileName: String) -> UIImage? {
+        let url = photoDirectoryURL().appendingPathComponent(fileName)
+        return UIImage(contentsOfFile: url.path)
+    }
+
+    private func photoDirectoryURL() -> URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return docs.appendingPathComponent("maiandros-trip-photos")
+    }
+}
+
+private struct ChecklistItemDetailView: View {
+    @Binding var trip: Trip
+    let checklistItemID: UUID
+
+    private var itemIndex: Int? {
+        trip.checklist.firstIndex(where: { $0.id == checklistItemID })
+    }
+
+    var body: some View {
+        Form {
+            if let itemIndex {
+                Section("Status") {
+                    Picker("Status", selection: $trip.checklist[itemIndex].status) {
+                        ForEach(ChecklistStatus.allCases, id: \.self) { status in
+                            Text(status.label).tag(status)
+                        }
+                    }
+                }
+
+                Section("Details") {
+                    TextField("Helper text", text: $trip.checklist[itemIndex].detail, axis: .vertical)
+                        .lineLimit(2...5)
+                }
+
+                Section("Meander Tips") {
+                    Text(contextualTip(for: trip.checklist[itemIndex].title))
+                        .font(.footnote)
+                        .foregroundStyle(MaiandrosTheme.secondaryText)
+                }
+            }
+        }
+        .navigationTitle(itemTitle)
+    }
+
+    private var itemTitle: String {
+        trip.checklist.first(where: { $0.id == checklistItemID })?.title ?? "Checklist Item"
+    }
+
+    private func contextualTip(for title: String) -> String {
+        switch title {
+        case "Verify Passport":
+            return "If this trip stays in the U.S., you can mark it skipped and exhale."
+        case "Book Flights":
+            return "A tiny goblin nudge: set one fare check reminder and walk away."
+        case "Book Lodging":
+            return "Pick your top 2 neighborhoods first, then compare stays there."
+        case "Book Transportation":
+            return "Only book this if the trip rhythm actually needs it."
+        case "Home Preparation":
+            return "Future-you will love simple wins: trash, thermostat, chargers, plants."
+        default:
+            return "Small steps count. Meander is keeping watch with you."
+        }
+    }
 }
 
 private struct PackingListDetailView: View {
     @Binding var trip: Trip
     let packingChecklistItemID: UUID
     @State private var newPackingItem = ""
+    @State private var isManualStatusOverride = false
 
     private var packedCount: Int { trip.packing.filter(\.isPacked).count }
 
@@ -217,7 +358,9 @@ private struct PackingListDetailView: View {
                         guard !item.isEmpty else { return }
                         trip.packing.append(PackingItem(name: item))
                         newPackingItem = ""
-                        syncChecklistToPackingProgress()
+                        if !isManualStatusOverride {
+                            syncChecklistToPackingProgress()
+                        }
                     }
                 }
             }
@@ -228,6 +371,12 @@ private struct PackingListDetailView: View {
                         Text(status.label).tag(status)
                     }
                 }
+                if isManualStatusOverride {
+                    Button("Use Automatic Status Again") {
+                        isManualStatusOverride = false
+                        syncChecklistToPackingProgress()
+                    }
+                }
             }
         }
         .listStyle(.insetGrouped)
@@ -235,10 +384,14 @@ private struct PackingListDetailView: View {
         .background(MaiandrosTheme.background)
         .navigationTitle("Packing List")
         .onAppear {
-            syncChecklistToPackingProgress()
+            if !isManualStatusOverride {
+                syncChecklistToPackingProgress()
+            }
         }
         .onChange(of: trip.packing) { _, _ in
-            syncChecklistToPackingProgress()
+            if !isManualStatusOverride {
+                syncChecklistToPackingProgress()
+            }
         }
     }
 
@@ -248,6 +401,7 @@ private struct PackingListDetailView: View {
         } set: { newStatus in
             guard let idx = trip.checklist.firstIndex(where: { $0.id == packingChecklistItemID }) else { return }
             trip.checklist[idx].status = newStatus
+            isManualStatusOverride = true
         }
     }
 
