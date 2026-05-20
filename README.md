@@ -5,6 +5,7 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
 ## What V1 Includes
 
 - Home screen with current trips, past trips placeholder, and trip cards
+- Tappable Meander badge on Home that opens a lightweight About screen
 - Trip creation flow (name, destination, reason, start/end dates, flying/driving)
 - Branded in-app splash screen after launch
 - Trip detail with:
