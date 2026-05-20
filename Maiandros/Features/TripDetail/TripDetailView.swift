@@ -10,7 +10,6 @@ struct TripDetailView: View {
     @State private var newCabinetTags = ""
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedCabinetImageItem: PhotosPickerItem?
-    @State private var showingTenDay = false
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -49,8 +48,12 @@ struct TripDetailView: View {
             guard let newItem else { return }
             Task { await importGlobalCabinetImage(newItem) }
         }
-        .sheet(isPresented: $showingTenDay) {
-            TenDayForecastView(days: weatherViewModel.tenDayForecast, departureDate: trip.startDate)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink("Edit Trip") {
+                    TripBasicsEditView(trip: $trip)
+                }
+            }
         }
     }
 
@@ -70,8 +73,12 @@ struct TripDetailView: View {
                     .font(.footnote)
                     .foregroundStyle(MaiandrosTheme.secondaryText)
                 HStack(spacing: 10) {
-                    Button("See 10-Day Forecast") {
-                        showingTenDay = true
+                    NavigationLink("See 10-Day Forecast") {
+                        TenDayForecastView(
+                            locationTitle: weatherViewModel.tenDayLocationName ?? trip.destination,
+                            days: weatherViewModel.tenDayForecast,
+                            departureDate: trip.startDate
+                        )
                     }
                     .buttonStyle(.bordered)
 
@@ -317,44 +324,97 @@ struct TripDetailView: View {
 }
 
 private struct TenDayForecastView: View {
+    let locationTitle: String
     let days: [WeatherForecastDay]
     let departureDate: Date
 
     var body: some View {
-        NavigationStack {
-            List {
-                if days.isEmpty {
-                    Text("Meander tried peeking at the weather, but the clouds were shy.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(days) { day in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(day.date, format: .dateTime.weekday(.abbreviated).day())
-                                    .fontWeight(.semibold)
-                                Text(day.condition)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if Calendar.current.isDate(day.date, inSameDayAs: departureDate) {
-                                Text("Departure")
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(MaiandrosTheme.cardAlt)
-                                    .clipShape(Capsule())
-                            }
-                            Text("\(day.high)°")
+        List {
+            if days.isEmpty {
+                Text("Meander tried peeking at the weather, but the clouds were shy.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(days) { day in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(day.date, format: .dateTime.weekday(.abbreviated).day())
                                 .fontWeight(.semibold)
-                            Text("\(day.low)°")
+                            Text(day.condition)
+                                .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
+                        Spacer()
+                        if Calendar.current.isDate(day.date, inSameDayAs: departureDate) {
+                            Text("Departure")
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(MaiandrosTheme.cardAlt)
+                                .clipShape(Capsule())
+                        }
+                        Text("\(day.high)°")
+                            .fontWeight(.semibold)
+                        Text("\(day.low)°")
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
-            .navigationTitle("10-Day Forecast")
         }
+        .navigationTitle(locationTitle)
+    }
+}
+
+private struct TripBasicsEditView: View {
+    @Binding var trip: Trip
+    @StateObject private var autocomplete = DestinationAutocompleteViewModel()
+
+    var body: some View {
+        Form {
+            Section("Trip Basics") {
+                TextField("Trip Name", text: $trip.name)
+
+                TextField("Destination", text: $trip.destination)
+                    .onChange(of: trip.destination) { _, newValue in
+                        autocomplete.update(query: newValue)
+                    }
+
+                if !autocomplete.suggestions.isEmpty && !trip.destination.isEmpty {
+                    ForEach(autocomplete.suggestions) { suggestion in
+                        Button {
+                            trip.destination = suggestion.displayText
+                            autocomplete.acceptSelection()
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(suggestion.title)
+                                    .foregroundStyle(.primary)
+                                if !suggestion.subtitle.isEmpty {
+                                    Text(suggestion.subtitle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                DatePicker("Start Date", selection: $trip.startDate, displayedComponents: .date)
+                DatePicker("End Date", selection: $trip.endDate, in: trip.startDate..., displayedComponents: .date)
+
+                Picker("Reason", selection: $trip.reason) {
+                    ForEach(TripReason.allCases) { reason in
+                        Text(reason.title).tag(reason)
+                    }
+                }
+
+                Picker("Flying or Driving", selection: $trip.travelMode) {
+                    ForEach(TravelMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+        }
+        .navigationTitle("Edit Trip")
     }
 }
 

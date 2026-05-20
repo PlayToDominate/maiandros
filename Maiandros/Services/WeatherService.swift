@@ -13,9 +13,14 @@ struct WeatherForecastDay: Equatable, Identifiable {
     let condition: String
 }
 
+struct TenDayForecastPayload: Equatable {
+    let locationName: String
+    let days: [WeatherForecastDay]
+}
+
 protocol WeatherServicing {
     func weatherPeek(for trip: Trip) async -> WeatherPeek
-    func tenDayForecast(for trip: Trip) async -> [WeatherForecastDay]
+    func tenDayForecast(for trip: Trip) async -> TenDayForecastPayload?
 }
 
 enum WeatherServiceFactory {
@@ -43,33 +48,33 @@ final class WeatherService: WeatherServicing {
             return WeatherPeek(summary: "Weather peek opens closer to your trip.")
         }
 
-        guard let location = await resolver.resolve(destination: trip.destination) else {
+        guard let resolved = await resolver.resolve(destination: trip.destination) else {
             return WeatherPeek(summary: "Weather peek needs a destination location.")
         }
 
-        if let forecast = try? await primary.peek(at: location, for: trip.startDate) {
+        if let forecast = try? await primary.peek(at: resolved.location, for: trip.startDate) {
             return WeatherPeek(summary: forecast)
         }
 
-        if let mock = try? await fallback.peek(at: location, for: trip.startDate) {
+        if let mock = try? await fallback.peek(at: resolved.location, for: trip.startDate) {
             return WeatherPeek(summary: mock)
         }
 
         return WeatherPeek(summary: "Meander tried peeking at the weather, but the clouds were shy.")
     }
 
-    func tenDayForecast(for trip: Trip) async -> [WeatherForecastDay] {
-        guard let location = await resolver.resolve(destination: trip.destination) else { return [] }
+    func tenDayForecast(for trip: Trip) async -> TenDayForecastPayload? {
+        guard let resolved = await resolver.resolve(destination: trip.destination) else { return nil }
 
-        if let forecast = try? await primary.tenDay(at: location) {
-            return forecast
+        if let forecast = try? await primary.tenDay(at: resolved.location) {
+            return TenDayForecastPayload(locationName: resolved.displayName, days: forecast)
         }
 
-        if let fallbackForecast = try? await fallback.tenDay(at: location) {
-            return fallbackForecast
+        if let fallbackForecast = try? await fallback.tenDay(at: resolved.location) {
+            return TenDayForecastPayload(locationName: resolved.displayName, days: fallbackForecast)
         }
 
-        return []
+        return nil
     }
 }
 
@@ -139,12 +144,29 @@ final class WeatherKitProvider: WeatherProviding {
 actor DestinationLocationResolver {
     private let geocoder = CLGeocoder()
 
-    func resolve(destination: String) async -> CLLocation? {
+    struct ResolvedDestination {
+        let location: CLLocation
+        let displayName: String
+    }
+
+    func resolve(destination: String) async -> ResolvedDestination? {
         let trimmed = destination.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         do {
             let placemarks = try await geocoder.geocodeAddressString(trimmed)
-            return placemarks.first?.location
+            guard let placemark = placemarks.first, let location = placemark.location else { return nil }
+
+            let parts = [
+                placemark.locality,
+                placemark.administrativeArea,
+                placemark.country
+            ].compactMap { value -> String? in
+                guard let value, !value.isEmpty else { return nil }
+                return value
+            }
+
+            let displayName = parts.isEmpty ? trimmed : parts.joined(separator: ", ")
+            return ResolvedDestination(location: location, displayName: displayName)
         } catch {
             return nil
         }
@@ -155,6 +177,7 @@ actor DestinationLocationResolver {
 final class TripWeatherViewModel: ObservableObject {
     @Published var weatherLine: String = "Weather peek opens closer to your trip."
     @Published var tenDayForecast: [WeatherForecastDay] = []
+    @Published var tenDayLocationName: String?
 
     private let service: WeatherServicing
 
@@ -171,7 +194,13 @@ final class TripWeatherViewModel: ObservableObject {
 
     func loadTenDay(for trip: Trip) {
         Task {
-            tenDayForecast = await service.tenDayForecast(for: trip)
+            if let payload = await service.tenDayForecast(for: trip) {
+                tenDayLocationName = payload.locationName
+                tenDayForecast = payload.days
+            } else {
+                tenDayLocationName = nil
+                tenDayForecast = []
+            }
         }
     }
 }
