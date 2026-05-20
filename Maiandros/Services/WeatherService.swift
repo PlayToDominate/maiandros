@@ -58,6 +58,7 @@ final class MockWeatherProvider: WeatherProviding {
     func peek(at location: CLLocation, for date: Date) async throws -> String {
         let options = [
             "Weather peek: 72° and partly cloudy near departure.",
+            "Looks like sweater weather.",
             "Weather peek: mild skies and a small chance of drizzle.",
             "Weather peek: sunshine with a light breeze near departure."
         ]

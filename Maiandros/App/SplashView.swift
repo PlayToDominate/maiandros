@@ -7,10 +7,7 @@ struct SplashView: View {
         ZStack {
             MaiandrosTheme.background.ignoresSafeArea()
             VStack(spacing: 16) {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color(red: 0.98, green: 0.88, blue: 0.74))
-                    .frame(width: 84, height: 84)
-                    .overlay { Text("🐮").font(.system(size: 38)) }
+                MeanderAvatar(size: .large)
                     .scaleEffect(appear ? 1.0 : 0.92)
                 Text("Maiandros")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
