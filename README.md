@@ -5,10 +5,11 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
 ## What V1 Includes
 
 - Home screen with current trips, past trips placeholder, and trip cards
-- Trip creation flow (name, destination, start/end dates, flying/driving)
 - Trip creation flow (name, destination, reason, start/end dates, flying/driving)
+- Branded in-app splash screen after launch
 - Trip detail with:
   - Countdown section
+  - Weather peek architecture with WeatherKit provider + mock fallback
   - Checklist with statuses (`Needs Action`, `Upcoming`, `In Progress`, `Complete`, `Optional/Skipped`) and per-item detail screens
   - Section Cabinet blocks inside checklist detail screens that also write to global Cabinet
   - Dedicated packing detail screen with auto progress-to-status sync
@@ -16,7 +17,8 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
   - Cabinet notes with flexible tags and optional photo/screenshot attachments
   - Trip Album for local photos/screenshots
 - Local persistence using JSON in app Documents
-- Warm/cozy copy tone with subtle Meander mascot references
+- Centralized Meander quote service with context-aware rotating lines
+- Highland-cow mascot placeholders (badge + callout cards) for future art swap-in
 
 ## Project Structure
 
@@ -24,12 +26,14 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
 - `Maiandros/Design` colors and shared card styling
 - `Maiandros/Models` trip/checklist/packing/cabinet models
 - `Maiandros/State` local store and seed logic
+- `Maiandros/Services` quote + weather abstractions
 - `Maiandros/Features` Home, Trip Creation, Trip Detail
 - `Maiandros/Resources` asset catalog
 
 ## Notes
 
 - No backend, no login, no APIs
+- WeatherKit setup may require enabling capability in Apple Developer/Xcode signing settings
 - Passport validity helper computes `trip end date + 6 months` guidance
 - U.S. destination inference skips passport stress for likely domestic trips (for example NYC)
 - Flight checklist state starts as `Upcoming` when trip is far out

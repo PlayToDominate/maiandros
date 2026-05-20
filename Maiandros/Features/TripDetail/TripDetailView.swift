@@ -4,6 +4,7 @@ import UIKit
 
 struct TripDetailView: View {
     @EnvironmentObject private var store: TripStore
+    @StateObject private var weatherViewModel = TripWeatherViewModel()
     @State var trip: Trip
     @State private var newCabinetText = ""
     @State private var newCabinetTags = ""
@@ -13,6 +14,7 @@ struct TripDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
+                MeanderCalloutCard(line: MeanderQuoteService.timelineLine(daysUntil: trip.daysUntilDeparture, seed: trip.id.uuidString))
                 countdownSection
                 checklistSection
                 albumSection
@@ -22,6 +24,15 @@ struct TripDetailView: View {
         }
         .background(MaiandrosTheme.background.ignoresSafeArea())
         .navigationTitle(trip.name)
+        .onAppear {
+            weatherViewModel.loadWeather(for: trip)
+        }
+        .onChange(of: trip.startDate) { _, _ in
+            weatherViewModel.loadWeather(for: trip)
+        }
+        .onChange(of: trip.destination) { _, _ in
+            weatherViewModel.loadWeather(for: trip)
+        }
         .onChange(of: trip) { _, updated in
             store.update(updated)
         }
@@ -44,10 +55,10 @@ struct TripDetailView: View {
                     .font(.system(size: 56, weight: .bold, design: .rounded))
                 Text("days until \(trip.destination)")
                     .font(.title3)
-                Text("Meander is already daydreaming about this one.")
+                Text(MeanderQuoteService.line(for: .countdown, daysUntil: trip.daysUntilDeparture, seed: trip.id.uuidString))
                     .foregroundStyle(MaiandrosTheme.secondaryText)
                 Divider()
-                Text("Weather peek: coming soon")
+                Text(weatherViewModel.weatherLine)
                     .font(.footnote)
                     .foregroundStyle(MaiandrosTheme.secondaryText)
             }
@@ -139,7 +150,7 @@ struct TripDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Trip Album")
                             .font(.headline)
-                        Text("Screenshots, ticket snaps, little travel memories.")
+                        Text(MeanderQuoteService.line(for: .tripAlbum, seed: trip.id.uuidString))
                             .font(.footnote)
                             .foregroundStyle(MaiandrosTheme.secondaryText)
                     }
@@ -150,9 +161,13 @@ struct TripDetailView: View {
                 }
 
                 if trip.photos.isEmpty {
-                    Text("No photos yet. Meander can collect your trip breadcrumbs here.")
-                        .font(.footnote)
-                        .foregroundStyle(MaiandrosTheme.secondaryText)
+                    HStack {
+                        Text("No photos yet.")
+                            .font(.footnote)
+                            .foregroundStyle(MaiandrosTheme.secondaryText)
+                        Spacer()
+                        MeanderBadge()
+                    }
                 } else {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
@@ -184,7 +199,7 @@ struct TripDetailView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Cabinet")
                     .font(.headline)
-                Text("A cozy catch-all for notes, links, reservation numbers, and little ideas.")
+                Text(MeanderQuoteService.line(for: .cabinet, seed: trip.id.uuidString))
                     .font(.footnote)
                     .foregroundStyle(MaiandrosTheme.secondaryText)
 
@@ -206,9 +221,13 @@ struct TripDetailView: View {
                 .buttonStyle(.borderedProminent)
 
                 if trip.cabinet.isEmpty {
-                    Text("Meander can stash your scattered travel snippets here.")
-                        .font(.footnote)
-                        .foregroundStyle(MaiandrosTheme.secondaryText)
+                    HStack {
+                        Text("No snippets tucked away yet.")
+                            .font(.footnote)
+                            .foregroundStyle(MaiandrosTheme.secondaryText)
+                        Spacer()
+                        MeanderBadge()
+                    }
                 }
 
                 ForEach(trip.cabinet) { entry in
@@ -405,10 +424,10 @@ private struct ChecklistItemDetailView: View {
     private func contextualTip(for title: String) -> String {
         switch title {
         case "Verify Passport": return "If this trip stays in the U.S., you can mark it skipped and exhale."
-        case "Book Flights": return "Add flight number and airline here so your summary stays useful."
-        case "Book Lodging": return "Save confirmation numbers and check-in notes right in this section."
-        case "Book Transportation": return "Store rental pickup info or train details here for quick access."
-        default: return "Small steps count. Meander is keeping watch with you."
+        case "Book Flights": return "A tiny nudge: store flight number and confirmation here."
+        case "Book Lodging": return "Save confirmation and check-in details while they're fresh."
+        case "Book Transportation": return "Store pickup point or platform notes for easy departure day."
+        default: return MeanderQuoteService.line(for: .checklist, seed: title)
         }
     }
 }
@@ -429,7 +448,7 @@ private struct HomePreparationDetailView: View {
             Section {
                 Text("\(doneCount)/\(trip.homePreparation.count) home prep tasks done")
                     .foregroundStyle(MaiandrosTheme.secondaryText)
-                Text("Tiny goblin reminder: future-you will be so grateful for these.")
+                Text(MeanderQuoteService.line(for: .checklist, seed: "home"))
                     .font(.footnote)
                     .foregroundStyle(MaiandrosTheme.secondaryText)
             }
@@ -524,10 +543,10 @@ private struct HomePreparationDetailView: View {
         let done = doneCount
         if total > 0 && done == total {
             trip.checklist[idx].status = .complete
-            trip.checklist[idx].detail = "Home is squared away. Meander approves this peaceful launch."
+            trip.checklist[idx].detail = MeanderQuoteService.line(for: .completeTask, seed: "home-complete")
         } else {
             trip.checklist[idx].status = .inProgress
-            trip.checklist[idx].detail = "\(done)/\(total) home tasks done. Calm and steady."
+            trip.checklist[idx].detail = "\(done)/\(total) home tasks done."
         }
     }
 
@@ -545,6 +564,7 @@ private struct HomePreparationDetailView: View {
             selectedSectionImageItem = nil
             return
         }
+
         let text = sectionNote.trimmingCharacters(in: .whitespacesAndNewlines)
         var tags = parseTags(sectionTags)
         tags.append("home")
@@ -571,7 +591,7 @@ private struct PackingListDetailView: View {
             Section {
                 Text("\(packedCount)/\(trip.packing.count) packed")
                     .foregroundStyle(MaiandrosTheme.secondaryText)
-                Text("The goblin believes in you. Also maybe pack socks.")
+                Text(MeanderQuoteService.line(for: .packing, seed: "packing"))
                     .font(.footnote)
                     .foregroundStyle(MaiandrosTheme.secondaryText)
             }
@@ -667,10 +687,10 @@ private struct PackingListDetailView: View {
 
         if total > 0 && packed == total {
             trip.checklist[idx].status = .complete
-            trip.checklist[idx].detail = "All packed. Meander is doing a tiny victory dance."
+            trip.checklist[idx].detail = MeanderQuoteService.line(for: .completeTask, seed: "packing-complete")
         } else {
             trip.checklist[idx].status = .inProgress
-            trip.checklist[idx].detail = "\(packed)/\(total) packed. Slow and steady, cozy traveler."
+            trip.checklist[idx].detail = "\(packed)/\(total) packed."
         }
     }
 
@@ -688,6 +708,7 @@ private struct PackingListDetailView: View {
             selectedSectionImageItem = nil
             return
         }
+
         let text = sectionNote.trimmingCharacters(in: .whitespacesAndNewlines)
         var tags = parseTags(sectionTags)
         tags.append("packing")
