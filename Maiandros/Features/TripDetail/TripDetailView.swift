@@ -74,7 +74,6 @@ struct TripDetailView: View {
                         showingTenDay = true
                     }
                     .buttonStyle(.bordered)
-                    .disabled(weatherViewModel.tenDayForecast.isEmpty)
 
                     Button("Open Weather App") {
                         if let url = URL(string: "weather://") {
