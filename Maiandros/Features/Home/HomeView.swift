@@ -14,53 +14,79 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    CozyCard {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Maiandros")
-                                .font(.title2.weight(.bold))
-                            Text("Meander says: little steps now, easier travel later.")
-                                .foregroundStyle(MaiandrosTheme.secondaryText)
-                        }
+            List {
+                CozyCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Maiandros")
+                            .font(.title2.weight(.bold))
+                        Text("Meander says: little steps now, easier travel later.")
+                            .foregroundStyle(MaiandrosTheme.secondaryText)
                     }
+                }
+                .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
 
-                    sectionHeader("Current Trips")
+                Section {
                     if currentTrips.isEmpty {
                         CozyCard {
                             Text("No trips yet. Meander is ready when you are.")
                                 .foregroundStyle(MaiandrosTheme.secondaryText)
                         }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                     } else {
                         ForEach(currentTrips) { trip in
                             NavigationLink(value: trip.id) {
                                 TripCard(trip: trip)
                             }
                             .buttonStyle(.plain)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    store.deleteTrip(id: trip.id)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                         }
                     }
+                } header: {
+                    Text("Current Trips")
+                }
 
-                    sectionHeader("Past Trips")
+                Section {
                     CozyCard {
                         Text(pastTrips.isEmpty ? "Past trips will gather here like happy postcards." : "\(pastTrips.count) past trip(s)")
                             .foregroundStyle(MaiandrosTheme.secondaryText)
                     }
-
-                    Button {
-                        showingCreate = true
-                    } label: {
-                        Text("+ Start Planning a Trip")
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(MaiandrosTheme.accent)
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                } header: {
+                    Text("Past Trips")
                 }
-                .padding()
+
+                Button {
+                    showingCreate = true
+                } label: {
+                    Text("+ Start Planning a Trip")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(MaiandrosTheme.accent)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+                .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 20, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
             .background(MaiandrosTheme.background.ignoresSafeArea())
+            .scrollContentBackground(.hidden)
             .navigationDestination(for: UUID.self) { id in
                 if let trip = store.trips.first(where: { $0.id == id }) {
                     TripDetailView(trip: trip)
@@ -71,13 +97,6 @@ struct HomeView: View {
             }
             .navigationTitle("Your Wander Shelf")
         }
-    }
-
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.headline)
-            .foregroundStyle(MaiandrosTheme.primaryText)
-            .padding(.top, 4)
     }
 }
 

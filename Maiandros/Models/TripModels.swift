@@ -76,16 +76,42 @@ struct PackingItem: Identifiable, Codable, Equatable {
     }
 }
 
+struct HomePrepItem: Identifiable, Codable, Equatable {
+    let id: UUID
+    var name: String
+    var isDone: Bool
+
+    init(id: UUID = UUID(), name: String, isDone: Bool = false) {
+        self.id = id
+        self.name = name
+        self.isDone = isDone
+    }
+}
+
 struct CabinetEntry: Identifiable, Codable, Equatable {
     let id: UUID
     var text: String
     var tags: [String]
+    var imageFileName: String?
     var createdAt: Date
 
-    init(id: UUID = UUID(), text: String, tags: [String], createdAt: Date = Date()) {
+    init(id: UUID = UUID(), text: String, tags: [String], imageFileName: String? = nil, createdAt: Date = Date()) {
         self.id = id
         self.text = text
         self.tags = tags
+        self.imageFileName = imageFileName
+        self.createdAt = createdAt
+    }
+}
+
+struct TripPhoto: Identifiable, Codable, Equatable {
+    let id: UUID
+    var fileName: String
+    var createdAt: Date
+
+    init(id: UUID = UUID(), fileName: String, createdAt: Date = Date()) {
+        self.id = id
+        self.fileName = fileName
         self.createdAt = createdAt
     }
 }
@@ -100,10 +126,12 @@ struct Trip: Identifiable, Codable, Equatable {
     var travelMode: TravelMode
     var checklist: [ChecklistItem]
     var packing: [PackingItem]
+    var homePreparation: [HomePrepItem]
     var cabinet: [CabinetEntry]
+    var photos: [TripPhoto]
 
     enum CodingKeys: String, CodingKey {
-        case id, name, destination, reason, startDate, endDate, travelMode, checklist, packing, cabinet
+        case id, name, destination, reason, startDate, endDate, travelMode, checklist, packing, homePreparation, cabinet, photos
     }
 
     init(
@@ -116,7 +144,9 @@ struct Trip: Identifiable, Codable, Equatable {
         travelMode: TravelMode,
         checklist: [ChecklistItem] = [],
         packing: [PackingItem] = [],
-        cabinet: [CabinetEntry] = []
+        homePreparation: [HomePrepItem] = [],
+        cabinet: [CabinetEntry] = [],
+        photos: [TripPhoto] = []
     ) {
         self.id = id
         self.name = name
@@ -127,7 +157,9 @@ struct Trip: Identifiable, Codable, Equatable {
         self.travelMode = travelMode
         self.checklist = checklist
         self.packing = packing
+        self.homePreparation = homePreparation
         self.cabinet = cabinet
+        self.photos = photos
     }
 
     init(from decoder: Decoder) throws {
@@ -141,7 +173,9 @@ struct Trip: Identifiable, Codable, Equatable {
         self.travelMode = try container.decode(TravelMode.self, forKey: .travelMode)
         self.checklist = try container.decode([ChecklistItem].self, forKey: .checklist)
         self.packing = try container.decode([PackingItem].self, forKey: .packing)
+        self.homePreparation = try container.decodeIfPresent([HomePrepItem].self, forKey: .homePreparation) ?? []
         self.cabinet = try container.decode([CabinetEntry].self, forKey: .cabinet)
+        self.photos = try container.decodeIfPresent([TripPhoto].self, forKey: .photos) ?? []
     }
 
     var daysUntilDeparture: Int {

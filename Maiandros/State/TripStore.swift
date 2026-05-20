@@ -17,7 +17,8 @@ final class TripStore: ObservableObject {
     func addTrip(name: String, destination: String, reason: TripReason, startDate: Date, endDate: Date, mode: TravelMode) {
         let checklist = Self.defaultChecklist(destination: destination, startDate: startDate, endDate: endDate)
         let packing = Self.defaultPacking(destination: destination, startDate: startDate)
-        let trip = Trip(name: name, destination: destination, reason: reason, startDate: startDate, endDate: endDate, travelMode: mode, checklist: checklist, packing: packing)
+        let homePreparation = Self.defaultHomePreparation()
+        let trip = Trip(name: name, destination: destination, reason: reason, startDate: startDate, endDate: endDate, travelMode: mode, checklist: checklist, packing: packing, homePreparation: homePreparation)
         trips.append(trip)
     }
 
@@ -26,9 +27,20 @@ final class TripStore: ObservableObject {
         trips[index] = trip
     }
 
+    func deleteTrip(id: UUID) {
+        trips.removeAll { $0.id == id }
+    }
+
     private func load() -> [Trip] {
         guard let data = try? Data(contentsOf: saveURL) else { return [] }
-        return (try? JSONDecoder().decode([Trip].self, from: data)) ?? []
+        let decoded = (try? JSONDecoder().decode([Trip].self, from: data)) ?? []
+        return decoded.map { trip in
+            var updated = trip
+            if updated.homePreparation.isEmpty {
+                updated.homePreparation = Self.defaultHomePreparation()
+            }
+            return updated
+        }
     }
 
     private func save() {
@@ -71,6 +83,18 @@ final class TripStore: ObservableObject {
             base += ["Warm layer", "Jacket"]
         }
         return base.map { PackingItem(name: $0) }
+    }
+
+    private static func defaultHomePreparation() -> [HomePrepItem] {
+        [
+            HomePrepItem(name: "Hold mail"),
+            HomePrepItem(name: "Pet sitter / pet care"),
+            HomePrepItem(name: "Adjust thermostat"),
+            HomePrepItem(name: "Take out trash"),
+            HomePrepItem(name: "Water plants"),
+            HomePrepItem(name: "Pack chargers"),
+            HomePrepItem(name: "Unplug non-essential appliances")
+        ]
     }
 
     private static func isLikelyUSDomesticDestination(_ destination: String) -> Bool {
