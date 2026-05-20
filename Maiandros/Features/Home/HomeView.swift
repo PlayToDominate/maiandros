@@ -1,9 +1,12 @@
 import SwiftUI
+import UIKit
+import UserNotifications
 
 struct HomeView: View {
     @EnvironmentObject private var store: TripStore
     @State private var showingCreate = false
-    @State private var showingAboutMeander = false
+    @State private var showingMeanderHub = false
+    @StateObject private var notificationCenter = MeanderNotificationCenter()
 
     var currentTrips: [Trip] {
         store.trips.filter { !$0.isPast }.sorted { $0.startDate < $1.startDate }
@@ -27,12 +30,12 @@ struct HomeView: View {
                         }
                         Spacer()
                         Button {
-                            showingAboutMeander = true
+                            showingMeanderHub = true
                         } label: {
-                            MeanderAvatar(size: .medium)
+                            MeanderAvatarWithBadge(size: .medium, count: notificationCenter.unreadCount)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("About Meander")
+                        .accessibilityLabel("Open Meander")
                     }
 
                     Text(MeanderQuoteService.line(for: currentTrips.isEmpty ? .homeEmpty : .homeActiveTrips, seed: "home-header"))
@@ -118,8 +121,161 @@ struct HomeView: View {
             .sheet(isPresented: $showingCreate) {
                 TripCreationView()
             }
-            .navigationDestination(isPresented: $showingAboutMeander) {
-                AboutMeanderView()
+            .sheet(isPresented: $showingMeanderHub) {
+                MeanderHubView(center: notificationCenter)
+            }
+            .task {
+                await notificationCenter.refresh()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                Task { await notificationCenter.refresh() }
+            }
+        }
+    }
+}
+
+private struct MeanderHubView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var center: MeanderNotificationCenter
+    @State private var tab: MeanderHubTab = .about
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 14) {
+                Picker("Meander", selection: $tab) {
+                    Text("About").tag(MeanderHubTab.about)
+                    Text("Notifications").tag(MeanderHubTab.notifications)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.top, 8)
+
+                if tab == .about {
+                    AboutMeanderContent()
+                } else {
+                    NotificationsTabView(center: center)
+                }
+            }
+            .background(MaiandrosTheme.background.ignoresSafeArea())
+            .navigationTitle("Meander")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .task {
+                await center.refresh()
+                if center.unreadCount > 0 {
+                    tab = .notifications
+                }
+            }
+        }
+    }
+}
+
+private enum MeanderHubTab {
+    case about
+    case notifications
+}
+
+private struct NotificationsTabView: View {
+    @ObservedObject var center: MeanderNotificationCenter
+
+    var body: some View {
+        List {
+            if center.delivered.isEmpty {
+                VStack(spacing: 10) {
+                    MeanderAvatar(size: .medium)
+                    Text("No notifications right now.")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Meander will tuck reminders here when they arrive.")
+                        .font(.footnote)
+                        .foregroundStyle(MaiandrosTheme.secondaryText)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .listRowBackground(Color.clear)
+            } else {
+                ForEach(center.delivered) { item in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(item.title)
+                            .font(.subheadline.weight(.semibold))
+                        Text(item.body)
+                            .font(.footnote)
+                            .foregroundStyle(MaiandrosTheme.secondaryText)
+                        Text(item.date, format: .dateTime.month(.abbreviated).day().hour().minute())
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+                .onDelete { offsets in
+                    let ids = offsets.map { center.delivered[$0].id }
+                    Task { await center.clear(ids: ids) }
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .safeAreaInset(edge: .bottom) {
+            if !center.delivered.isEmpty {
+                Button("Clear All") {
+                    Task { await center.clearAll() }
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.bottom, 8)
+            }
+        }
+    }
+}
+
+struct MeanderNotificationItem: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let body: String
+    let date: Date
+}
+
+@MainActor
+final class MeanderNotificationCenter: ObservableObject {
+    @Published var delivered: [MeanderNotificationItem] = []
+
+    var unreadCount: Int { delivered.count }
+
+    private let center = UNUserNotificationCenter.current()
+
+    func refresh() async {
+        let notifications = await center.deliveredNotifications()
+        delivered = notifications
+            .filter { $0.request.identifier.hasPrefix("maiandros-trip-reminder") }
+            .map {
+                MeanderNotificationItem(
+                    id: $0.request.identifier,
+                    title: $0.request.content.title,
+                    body: $0.request.content.body,
+                    date: $0.date
+                )
+            }
+            .sorted { $0.date > $1.date }
+    }
+
+    func clear(ids: [String]) async {
+        center.removeDeliveredNotifications(withIdentifiers: ids)
+        await refresh()
+    }
+
+    func clearAll() async {
+        center.removeDeliveredNotifications(withIdentifiers: delivered.map(\.id))
+        await refresh()
+    }
+}
+
+private extension UNUserNotificationCenter {
+    func deliveredNotifications() async -> [UNNotification] {
+        await withCheckedContinuation { continuation in
+            getDeliveredNotifications { notifications in
+                continuation.resume(returning: notifications)
             }
         }
     }

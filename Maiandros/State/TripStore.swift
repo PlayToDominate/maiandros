@@ -1,9 +1,17 @@
 import Foundation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 @MainActor
 final class TripStore: ObservableObject {
     @Published var trips: [Trip] = [] {
-        didSet { save() }
+        didSet {
+            save()
+            #if canImport(WidgetKit)
+            WidgetCenter.shared.reloadAllTimelines()
+            #endif
+        }
     }
 
     private let saveURL: URL

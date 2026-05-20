@@ -2,6 +2,14 @@ import SwiftUI
 
 struct AboutMeanderView: View {
     var body: some View {
+        AboutMeanderContent()
+            .navigationTitle("About")
+            .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct AboutMeanderContent: View {
+    var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 VStack(alignment: .leading, spacing: 14) {
@@ -36,7 +44,5 @@ struct AboutMeanderView: View {
             .padding()
         }
         .background(MaiandrosTheme.background.ignoresSafeArea())
-        .navigationTitle("About")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
