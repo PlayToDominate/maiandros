@@ -14,6 +14,7 @@ enum MeanderQuoteContext {
     case tripWithin30
     case tripWithin7
     case tripTomorrowOrToday
+    case postTripNostalgia
 }
 
 enum MeanderQuoteService {
@@ -23,81 +24,87 @@ enum MeanderQuoteService {
         switch context {
         case .homeEmpty:
             bucket = [
-                "Meander is ready whenever your next wander appears.",
-                "No trips yet. That just means fresh adventures are still simmering.",
-                "Soft nudge from Meander: planning can start tiny."
+                "No trips yet. Meander is quietly waiting by the door.",
+                "When you're ready to wander, Meander is already mentally at the airport.",
+                "A tiny start is still a start."
             ]
         case .homeActiveTrips:
             bucket = [
                 "Meander says: little steps now, easier travel later.",
-                "Your future self is quietly cheering for this prep.",
-                "Tiny hoof reminder: one small step is still a step."
+                "Tiny hoof reminder: one small step is still a step.",
+                "You're making room for the fun part."
             ]
         case .countdown:
             bucket = [
-                "Meander is already daydreaming about this one.",
+                "Meander is already mentally at the airport.",
                 "Almost time to wander.",
-                "This trip is warming up nicely."
+                "This trip is starting to feel real in the best way."
             ]
         case .checklist:
             bucket = [
-                "One gentle checkbox at a time.",
-                "No rush, no panic. Meander likes steady progress.",
-                "One less thing moving around in your brain."
+                "One gentle step, then another.",
+                "No rush. Just less mental clutter.",
+                "One less thing wandering around your brain."
             ]
         case .packing:
             bucket = [
                 "The cow believes in you. Also maybe pack socks.",
-                "Your suitcase is starting to look suspiciously organized.",
-                "Pack calm now, thank yourself later."
+                "The suitcase is starting to look suspicious.",
+                "Future-you just sent a thank-you moo."
             ]
         case .cabinet:
             bucket = [
                 "Meander tucked this away for later.",
-                "Cabinet mode: safely stashing brain clutter.",
-                "Saved. One fewer loose thought to carry."
+                "Saved safely, so your brain can rest.",
+                "One less loose thread to carry around."
             ]
         case .tripAlbum:
             bucket = [
                 "Tiny moments count too.",
-                "Trip memories, neatly corralled.",
-                "Meander likes these breadcrumbs."
+                "A little travel scrapbook is forming.",
+                "These are the soft edges of the trip."
             ]
         case .upcomingTask:
             bucket = [
-                "A gentle nudge for your next step.",
-                "This one can wait, but not forever.",
-                "Meander circled this so you don't have to hold it in your head."
+                "This one can be your next tiny win.",
+                "Gentle nudge from Meander.",
+                "Not urgent, just worth a small step soon."
             ]
         case .completeTask:
             bucket = [
-                "Done and dusted. Nicely handled.",
-                "That task is fully out of your mental backpack.",
-                "Meander approves this tidy win."
+                "Nicely done. That's out of your head now.",
+                "One less thing to carry.",
+                "Meander did a tiny proud nod."
             ]
         case .tripFarAway:
             bucket = [
-                "Plenty of runway. Cozy planning mode is perfect.",
-                "Far-away trip energy: light prep, low stress.",
-                "No need to sprint yet."
+                "Plenty of runway. Cozy planning is perfect here.",
+                "No sprinting needed yet.",
+                "Long-horizon trips love slow, kind prep."
             ]
         case .tripWithin30:
             bucket = [
-                "Now we're in the useful prep window.",
-                "A little focus now will feel great later.",
-                "Meander has entered friendly reminder mode."
+                "This is the sweet spot for light prep.",
+                "A little attention now goes a long way.",
+                "Meander is keeping the loose pieces together."
             ]
         case .tripWithin7:
             bucket = [
-                "Final stretch. Keep it simple and kind.",
-                "This week is for calm finishing touches.",
-                "You've got this. Meander is on snack-and-checklist duty."
+                "Final-week energy: calm and simple.",
+                "You've done the hard part. Now just tidy edges.",
+                "Meander packed snacks and encouragement."
             ]
         case .tripTomorrowOrToday:
             bucket = [
-                "It's go-time. Breathe first, then wander.",
-                "Today/tomorrow energy: essentials, then excitement.",
-                "Meander did a tiny happy spin for this."
+                "Breathe first. Wander second.",
+                "Today/tomorrow mode: essentials, then joy.",
+                "Meander is practically at the gate."
+            ]
+        case .postTripNostalgia:
+            bucket = [
+                "That trip glow lasts a little while.",
+                "Past wanderings, neatly tucked away.",
+                "A small postcard from your recent self."
             ]
         }
 

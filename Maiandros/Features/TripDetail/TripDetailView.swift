@@ -123,10 +123,10 @@ struct TripDetailView: View {
         guard let latest = tagged.first else { return item.detail }
 
         switch tag {
-        case "flights": return "Saved flight info: \(latest.text)"
-        case "lodging": return "Saved lodging note: \(latest.text)"
-        case "transportation": return "Saved transport note: \(latest.text)"
-        case "passport": return "Saved passport note: \(latest.text)"
+        case "flights": return "Flights tucked here: \(latest.text)"
+        case "lodging": return "Lodging tucked here: \(latest.text)"
+        case "transportation": return "Transport tucked here: \(latest.text)"
+        case "passport": return "Passport note tucked here: \(latest.text)"
         default: return latest.text
         }
     }

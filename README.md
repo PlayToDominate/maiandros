@@ -8,6 +8,7 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
 - Tappable Meander badge on Home that opens a lightweight About screen
 - Trip creation flow (name, destination, reason, start/end dates, flying/driving)
 - Branded in-app splash screen after launch
+- Reusable Meander mascot component system (`MeanderAvatar`) for consistent identity across Home/About/Detail/empty states
 - Trip detail with:
   - Countdown section
   - Weather peek architecture with WeatherKit provider + mock fallback
@@ -19,7 +20,7 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
   - Trip Album for local photos/screenshots
 - Local persistence using JSON in app Documents
 - Centralized Meander quote service with context-aware rotating lines
-- Highland-cow mascot placeholders (badge + callout cards) for future art swap-in
+- Highland-cow visual placeholders with asset replacement map for future illustration pass
 
 ## Project Structure
 
@@ -30,6 +31,7 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
 - `Maiandros/Services` quote + weather abstractions
 - `Maiandros/Features` Home, Trip Creation, Trip Detail
 - `Maiandros/Resources` asset catalog
+- `Maiandros/Resources/MeanderPlaceholders` asset naming/TODO map for final mascot art
 
 ## Notes
 

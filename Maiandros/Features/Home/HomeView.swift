@@ -16,48 +16,42 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             List {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Maiandros")
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Maiandros")
+                                .font(.system(size: 38, weight: .bold, design: .rounded))
+                            Text("little steps now, easier travel later")
+                                .font(.footnote.italic())
+                                .foregroundStyle(MaiandrosTheme.secondaryText)
+                        }
                         Spacer()
                         Button {
                             showingAboutMeander = true
                         } label: {
-                            MeanderBadge()
+                            MeanderAvatar(size: .medium)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("About Meander")
                     }
-                    Text("little steps now, easier travel later")
-                        .font(.footnote.italic())
+
+                    Text(MeanderQuoteService.line(for: currentTrips.isEmpty ? .homeEmpty : .homeActiveTrips, seed: "home-header"))
+                        .font(.footnote)
                         .foregroundStyle(MaiandrosTheme.secondaryText)
                 }
-                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 10, trailing: 16))
+                .listRowInsets(EdgeInsets(top: 14, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
 
                 Section {
                     if currentTrips.isEmpty {
                         CozyCard {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(MeanderQuoteService.line(for: .homeEmpty, seed: "home-empty"))
-                                    .foregroundStyle(MaiandrosTheme.secondaryText)
-                                MeanderBadge()
-                            }
+                            MeanderEmptyState(line: MeanderQuoteService.line(for: .homeEmpty, seed: "home-empty"))
                         }
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                     } else {
-                        CozyCard {
-                            Text(MeanderQuoteService.line(for: .homeActiveTrips, seed: "home-active"))
-                                .font(.footnote)
-                                .foregroundStyle(MaiandrosTheme.secondaryText)
-                        }
-                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-
                         ForEach(currentTrips) { trip in
                             NavigationLink(value: trip.id) {
                                 TripCard(trip: trip)
@@ -81,8 +75,15 @@ struct HomeView: View {
 
                 Section {
                     CozyCard {
-                        Text(pastTrips.isEmpty ? "Past trips will gather here like happy postcards." : "\(pastTrips.count) past trip(s)")
-                            .foregroundStyle(MaiandrosTheme.secondaryText)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(pastTrips.isEmpty ? "Past trips will gather here like happy postcards." : "\(pastTrips.count) past trip(s)")
+                                .foregroundStyle(MaiandrosTheme.secondaryText)
+                            if !pastTrips.isEmpty {
+                                Text(MeanderQuoteService.line(for: .postTripNostalgia, seed: "past-trips"))
+                                    .font(.footnote)
+                                    .foregroundStyle(MaiandrosTheme.secondaryText)
+                            }
+                        }
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                     .listRowBackground(Color.clear)
@@ -130,12 +131,18 @@ private struct TripCard: View {
     var body: some View {
         CozyCard {
             VStack(alignment: .leading, spacing: 6) {
-                Text(trip.destination)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(MaiandrosTheme.primaryText)
-                Text(trip.reason.title)
-                    .font(.caption)
-                    .foregroundStyle(MaiandrosTheme.secondaryText)
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(trip.destination)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(MaiandrosTheme.primaryText)
+                        Text(trip.reason.title)
+                            .font(.caption)
+                            .foregroundStyle(MaiandrosTheme.secondaryText)
+                    }
+                    Spacer()
+                    MeanderAvatar(size: .small)
+                }
                 Text("\(trip.daysUntilDeparture) days left")
                     .foregroundStyle(MaiandrosTheme.secondaryText)
                 Text("\(trip.itemsRemaining) items remaining")
