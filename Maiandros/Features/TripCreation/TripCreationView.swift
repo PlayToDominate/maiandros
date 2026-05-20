@@ -33,7 +33,7 @@ struct TripCreationView: View {
                         ForEach(autocomplete.suggestions) { suggestion in
                             Button {
                                 destination = suggestion.displayText
-                                autocomplete.clear()
+                                autocomplete.acceptSelection()
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(suggestion.title)
@@ -101,6 +101,7 @@ final class DestinationAutocompleteViewModel: NSObject, ObservableObject, MKLoca
     @Published var suggestions: [DestinationSuggestion] = []
 
     private let completer = MKLocalSearchCompleter()
+    private var isIgnoringCompleterUpdates = false
 
     override init() {
         super.init()
@@ -109,6 +110,7 @@ final class DestinationAutocompleteViewModel: NSObject, ObservableObject, MKLoca
     }
 
     func update(query: String) {
+        if isIgnoringCompleterUpdates { return }
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.count < 2 {
             suggestions = []
@@ -121,7 +123,18 @@ final class DestinationAutocompleteViewModel: NSObject, ObservableObject, MKLoca
         suggestions = []
     }
 
+    func acceptSelection() {
+        isIgnoringCompleterUpdates = true
+        suggestions = []
+        completer.queryFragment = ""
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            self?.isIgnoringCompleterUpdates = false
+        }
+    }
+
     func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        if isIgnoringCompleterUpdates { return }
         suggestions = completer.results.prefix(6).map {
             DestinationSuggestion(title: $0.title, subtitle: $0.subtitle)
         }
