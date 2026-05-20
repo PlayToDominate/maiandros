@@ -64,11 +64,11 @@ final class TripStore: ObservableObject {
 
         return [
             ChecklistItem(title: "Verify Passport", detail: passportDetail, status: passportStatus, canSkip: true),
-            ChecklistItem(title: "Book Flights", detail: flightStatus == .upcoming ? "Tiny goblin reminder: flights are usually cheapest around now in a few weeks ✈️" : "Booking window is open.", status: flightStatus),
+            ChecklistItem(title: "Book Flights", detail: flightStatus == .upcoming ? "Tiny hoof reminder: flights are often friendlier around this window ✈️" : "Booking window is open.", status: flightStatus),
             ChecklistItem(title: "Book Lodging", detail: "Find a cozy place to land each night.", status: .needsAction),
             ChecklistItem(title: "Book Transportation", detail: "Rental car, train, shuttle, or skip if not needed.", status: .inProgress, canSkip: true),
             ChecklistItem(title: "Packing List", detail: "Start with essentials; add special items as you wander.", status: .inProgress),
-            ChecklistItem(title: "Home Preparation", detail: "Mail, plants, chargers, and one last goblin walk-through.", status: .upcoming)
+            ChecklistItem(title: "Home Preparation", detail: "Mail, plants, chargers, and one last Meander walk-through.", status: .upcoming)
         ]
     }
 

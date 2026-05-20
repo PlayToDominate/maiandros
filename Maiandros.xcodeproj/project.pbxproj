@@ -16,6 +16,10 @@
 		A10000000000000000000007 /* Maiandros/Features/TripCreation/TripCreationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* Maiandros/Features/TripCreation/TripCreationView.swift */; };
 		A10000000000000000000008 /* Maiandros/Features/TripDetail/TripDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* Maiandros/Features/TripDetail/TripDetailView.swift */; };
 		A10000000000000000000009 /* Maiandros/Resources/Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* Maiandros/Resources/Assets.xcassets */; };
+		A10000000000000000000010 /* Maiandros/Services/MeanderQuoteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* Maiandros/Services/MeanderQuoteService.swift */; };
+		A10000000000000000000011 /* Maiandros/Services/WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* Maiandros/Services/WeatherService.swift */; };
+		A10000000000000000000012 /* Maiandros/Design/MascotViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* Maiandros/Design/MascotViews.swift */; };
+		A10000000000000000000013 /* Maiandros/App/SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* Maiandros/App/SplashView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +33,10 @@
 		A20000000000000000000007 /* Maiandros/Features/TripCreation/TripCreationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maiandros/Features/TripCreation/TripCreationView.swift; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000008 /* Maiandros/Features/TripDetail/TripDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maiandros/Features/TripDetail/TripDetailView.swift; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000009 /* Maiandros/Resources/Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Maiandros/Resources/Assets.xcassets; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000010 /* Maiandros/Services/MeanderQuoteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maiandros/Services/MeanderQuoteService.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000011 /* Maiandros/Services/WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maiandros/Services/WeatherService.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000012 /* Maiandros/Design/MascotViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maiandros/Design/MascotViews.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000013 /* Maiandros/App/SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maiandros/App/SplashView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -56,9 +64,13 @@
 			children = (
 				A20000000000000000000001 /* Maiandros/App/MaiandrosApp.swift */,
 				A20000000000000000000002 /* Maiandros/App/ContentView.swift */,
+				A20000000000000000000013 /* Maiandros/App/SplashView.swift */,
 				A20000000000000000000003 /* Maiandros/Design/Theme.swift */,
+				A20000000000000000000012 /* Maiandros/Design/MascotViews.swift */,
 				A20000000000000000000004 /* Maiandros/Models/TripModels.swift */,
 				A20000000000000000000005 /* Maiandros/State/TripStore.swift */,
+				A20000000000000000000010 /* Maiandros/Services/MeanderQuoteService.swift */,
+				A20000000000000000000011 /* Maiandros/Services/WeatherService.swift */,
 				A20000000000000000000006 /* Maiandros/Features/Home/HomeView.swift */,
 				A20000000000000000000007 /* Maiandros/Features/TripCreation/TripCreationView.swift */,
 				A20000000000000000000008 /* Maiandros/Features/TripDetail/TripDetailView.swift */,
@@ -156,6 +168,10 @@
 				A10000000000000000000006 /* Maiandros/Features/Home/HomeView.swift in Sources */,
 				A10000000000000000000007 /* Maiandros/Features/TripCreation/TripCreationView.swift in Sources */,
 				A10000000000000000000008 /* Maiandros/Features/TripDetail/TripDetailView.swift in Sources */,
+				A10000000000000000000010 /* Maiandros/Services/MeanderQuoteService.swift in Sources */,
+				A10000000000000000000011 /* Maiandros/Services/WeatherService.swift in Sources */,
+				A10000000000000000000012 /* Maiandros/Design/MascotViews.swift in Sources */,
+				A10000000000000000000013 /* Maiandros/App/SplashView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
