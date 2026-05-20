@@ -41,6 +41,29 @@ struct MeanderAvatar: View {
     }
 }
 
+struct MeanderAvatarWithBadge: View {
+    var size: MeanderAvatarSize = .medium
+    var count: Int
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            MeanderAvatar(size: size)
+
+            if count > 0 {
+                Text("\(min(count, 99))")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.red)
+                    .clipShape(Capsule())
+                    .offset(x: 6, y: -6)
+                    .accessibilityLabel("\(count) notifications")
+            }
+        }
+    }
+}
+
 struct MeanderBadge: View {
     var body: some View {
         HStack(spacing: 8) {
