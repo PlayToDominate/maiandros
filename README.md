@@ -10,6 +10,7 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
 - Trip detail with:
   - Countdown section
   - Checklist with statuses (`Needs Action`, `Upcoming`, `In Progress`, `Complete`, `Optional/Skipped`) and per-item detail screens
+  - Section Cabinet blocks inside checklist detail screens that also write to global Cabinet
   - Dedicated packing detail screen with auto progress-to-status sync
   - Home Preparation detail screen with editable task list and progress sync
   - Cabinet notes with flexible tags and optional photo/screenshot attachments
