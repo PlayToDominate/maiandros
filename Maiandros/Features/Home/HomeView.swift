@@ -247,7 +247,7 @@ final class MeanderNotificationCenter: ObservableObject {
 
     func refresh() async {
         let notifications = await center.deliveredNotifications()
-        delivered = notifications
+        let items = notifications
             .filter { $0.request.identifier.hasPrefix("maiandros-trip-reminder") }
             .map {
                 MeanderNotificationItem(
@@ -258,6 +258,8 @@ final class MeanderNotificationCenter: ObservableObject {
                 )
             }
             .sorted { $0.date > $1.date }
+        delivered = items
+        UIApplication.shared.applicationIconBadgeNumber = items.count
     }
 
     func clear(ids: [String]) async {
