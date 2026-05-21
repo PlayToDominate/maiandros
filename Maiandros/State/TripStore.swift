@@ -22,6 +22,9 @@ final class TripStore: ObservableObject {
         self.saveURL = docs.appendingPathComponent("maiandros-trips.json")
         self.trips = load()
         WidgetSnapshotStore.writeNextTrip(nextUpcomingTrip())
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 
     func addTrip(name: String, destination: String, reason: TripReason, startDate: Date, endDate: Date, mode: TravelMode) {
