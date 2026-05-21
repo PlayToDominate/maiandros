@@ -8,6 +8,7 @@ final class TripStore: ObservableObject {
     @Published var trips: [Trip] = [] {
         didSet {
             save()
+            WidgetSnapshotStore.writeNextTrip(nextUpcomingTrip())
             #if canImport(WidgetKit)
             WidgetCenter.shared.reloadAllTimelines()
             #endif
@@ -20,6 +21,10 @@ final class TripStore: ObservableObject {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         self.saveURL = docs.appendingPathComponent("maiandros-trips.json")
         self.trips = load()
+        WidgetSnapshotStore.writeNextTrip(nextUpcomingTrip())
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 
     func addTrip(name: String, destination: String, reason: TripReason, startDate: Date, endDate: Date, mode: TravelMode) {
@@ -126,5 +131,12 @@ final class TripStore: ObservableObject {
             }
         }
         return false
+    }
+
+    private func nextUpcomingTrip() -> Trip? {
+        trips
+            .filter { !$0.isPast }
+            .sorted { $0.startDate < $1.startDate }
+            .first
     }
 }
