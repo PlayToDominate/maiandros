@@ -8,26 +8,24 @@ struct WidgetTripSnapshot: Codable, Equatable {
 }
 
 enum WidgetSnapshotStore {
-    // TODO: Replace with your production App Group in both app + widget targets.
-    static let appGroupID = "group.com.playtodominate.maiandros"
+    // Keep both likely IDs so local setups keep working without manual edits.
+    private static let candidateAppGroupIDs = [
+        "group.com.playtodominate.maiandros",
+        "group.com.example.Maiandros"
+    ]
     static let nextTripKey = "maiandros.widget.nextTrip"
 
     static func writeNextTrip(_ trip: Trip?) {
-        guard let defaults = UserDefaults(suiteName: appGroupID) else { return }
+        let suites = candidateAppGroupIDs.compactMap { UserDefaults(suiteName: $0) }
+        guard !suites.isEmpty else { return }
 
         guard let trip else {
-            defaults.removeObject(forKey: nextTripKey)
+            suites.forEach { $0.removeObject(forKey: nextTripKey) }
             return
         }
 
-        let snapshot = WidgetTripSnapshot(
-            tripName: trip.name,
-            destination: trip.destination,
-            startDate: trip.startDate,
-            daysUntil: trip.daysUntilDeparture
-        )
-
+        let snapshot = WidgetTripSnapshot(tripName: trip.name, destination: trip.destination, startDate: trip.startDate, daysUntil: trip.daysUntilDeparture)
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
-        defaults.set(data, forKey: nextTripKey)
+        suites.forEach { $0.set(data, forKey: nextTripKey) }
     }
 }

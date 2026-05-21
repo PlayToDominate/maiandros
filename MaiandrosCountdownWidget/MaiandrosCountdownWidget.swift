@@ -9,13 +9,21 @@ private struct WidgetTripSnapshot: Codable {
 }
 
 private enum WidgetSnapshotStore {
-    static let appGroupID = "group.com.playtodominate.maiandros"
+    private static let candidateAppGroupIDs = [
+        "group.com.playtodominate.maiandros",
+        "group.com.example.Maiandros"
+    ]
     static let nextTripKey = "maiandros.widget.nextTrip"
 
     static func loadNextTrip() -> WidgetTripSnapshot? {
-        guard let defaults = UserDefaults(suiteName: appGroupID),
-              let data = defaults.data(forKey: nextTripKey) else { return nil }
-        return try? JSONDecoder().decode(WidgetTripSnapshot.self, from: data)
+        for id in candidateAppGroupIDs {
+            if let defaults = UserDefaults(suiteName: id),
+               let data = defaults.data(forKey: nextTripKey),
+               let snapshot = try? JSONDecoder().decode(WidgetTripSnapshot.self, from: data) {
+                return snapshot
+            }
+        }
+        return nil
     }
 }
 
