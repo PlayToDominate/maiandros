@@ -118,10 +118,103 @@ enum MeanderQuoteService {
         return line(for: .tripFarAway, daysUntil: daysUntil, seed: seed)
     }
 
+    static func departureDayTitle(seed: String = "") -> String {
+        pick(from: departureTitles, seed: "departure-title-\(seed)")
+    }
+
+    static func departureDaySubtitle(seed: String = "") -> String {
+        pick(from: departureSubtitles, seed: "departure-subtitle-\(seed)")
+    }
+
     private static func pick(from lines: [String], seed: String) -> String {
         guard !lines.isEmpty else { return "" }
         let daySeed = Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0
         let hashValue = abs((seed + "-\(daySeed)").hashValue)
         return lines[hashValue % lines.count]
     }
+
+    private static let departureTitles: [String] = [
+        "Take lots of pictures",
+        "Time to wander",
+        "Safe travels",
+        "Today's the day",
+        "Off you go",
+        "Adventure starts today",
+        "The waiting part is over",
+        "Go make some memories",
+        "Hope this trip feels good",
+        "Tiny adventures await",
+        "Wheels up soon",
+        "Your trip starts now",
+        "Wander well",
+        "The bags are packed",
+        "Time for a change of scenery",
+        "Go see something beautiful",
+        "Let the wandering begin",
+        "Ready or not, here comes the airport",
+        "The cozy countdown is complete",
+        "This one's finally happening",
+        "The trip is officially real now",
+        "Departure day has arrived",
+        "The passport era begins",
+        "You made it to travel day",
+        "Time to collect little memories",
+        "May your snacks survive TSA",
+        "Your future memories are loading",
+        "One last deep breath",
+        "Airport mode activated",
+        "Today belongs to wandering",
+        "This chapter starts today",
+        "Hope the window seat energy is strong",
+        "Time to leave ordinary behind",
+        "Your getaway begins today",
+        "Go find some postcard moments",
+        "The adventure shoes are on",
+        "The suitcase has fulfilled its destiny",
+        "Time to chase a little joy",
+        "Go make future-you nostalgic"
+    ]
+
+    private static let departureSubtitles: [String] = [
+        "Meander hopes this becomes a favorite memory.",
+        "Future-you will love looking back on this.",
+        "Tiny memories count too.",
+        "Meander double-checked the snacks.",
+        "Meander is emotionally already at the gate.",
+        "Hope the airport coffee is decent.",
+        "Meander believes you remembered the charger.",
+        "The suitcase is looking very official now.",
+        "Tiny hoof reminder: breathe and enjoy it.",
+        "Meander packed emotional support socks.",
+        "The little moments matter too.",
+        "Meander can't wait to hear about this one.",
+        "Take pictures of the weird little things too.",
+        "One less thing wandering around your brain.",
+        "Meander says this trip already feels special.",
+        "Tiny hoof reminder: you don't have to rush.",
+        "Meander recommends a cozy travel playlist.",
+        "The wandering officially begins now.",
+        "Meander thinks this one will make good stories.",
+        "Don't forget to look out the window sometimes.",
+        "Hope something unexpectedly wonderful happens.",
+        "Meander packed extra cozy energy for you.",
+        "Today feels like a memory in the making.",
+        "The cow believes in you. Also maybe snacks.",
+        "May your gate be nearby and your seat comfortable.",
+        "Meander says the best trips leave room for wandering.",
+        "Tiny hoof reminder: not every good moment needs a plan.",
+        "Meander hopes you find at least one place you want to revisit someday.",
+        "Future-you is already grateful you took this trip.",
+        "Meander thinks the tiny moments become the biggest memories.",
+        "Hope the weather behaves itself.",
+        "Meander says to take the scenic route if you can.",
+        "The adventure officially left the group chat phase.",
+        "Meander is ready for cozy travel chaos.",
+        "Tiny hoof reminder: chargers first, panic second.",
+        "Hope you find a really good breakfast spot.",
+        "Meander recommends leaving room for surprises.",
+        "Some memories sneak up on you quietly.",
+        "Meander says wandering counts as productivity today.",
+        "Tiny hoof reminder: the trip already started the moment you got excited about it."
+    ]
 }
