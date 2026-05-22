@@ -106,20 +106,31 @@ struct MaiandrosCountdownWidgetView: View {
 
                 Spacer(minLength: 2)
 
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(entry.daysUntil)")
-                        .font(.system(size: 54, weight: .heavy, design: .rounded))
+                if entry.hasSnapshot && entry.daysUntil == 0 {
+                    Text("Today is the day")
+                        .font(.system(size: 32, weight: .heavy, design: .rounded))
                         .foregroundStyle(Color(red: 0.22, green: 0.18, blue: 0.14))
                         .minimumScaleFactor(0.7)
-                    Text("days")
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(Color(red: 0.43, green: 0.35, blue: 0.26))
-                }
+                    Text("Meander says: time to wander.")
+                        .font(.footnote)
+                        .foregroundStyle(Color(red: 0.37, green: 0.31, blue: 0.24))
+                        .lineLimit(2)
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("\(entry.daysUntil)")
+                            .font(.system(size: 54, weight: .heavy, design: .rounded))
+                            .foregroundStyle(Color(red: 0.22, green: 0.18, blue: 0.14))
+                            .minimumScaleFactor(0.7)
+                        Text("days")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(Color(red: 0.43, green: 0.35, blue: 0.26))
+                    }
 
-                Text(entry.tripName == "No Trips Yet" ? "Start planning your next wander." : "until \(entry.destination)")
-                    .font(.footnote)
-                    .foregroundStyle(Color(red: 0.37, green: 0.31, blue: 0.24))
-                    .lineLimit(2)
+                    Text(entry.tripName == "No Trips Yet" ? "Start planning your next wander." : "until \(entry.destination)")
+                        .font(.footnote)
+                        .foregroundStyle(Color(red: 0.37, green: 0.31, blue: 0.24))
+                        .lineLimit(2)
+                }
 
                 if !entry.hasSnapshot {
                     Text("Open the app once to sync trips.")

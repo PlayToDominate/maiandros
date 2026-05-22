@@ -301,7 +301,7 @@ private struct TripCard: View {
                     Spacer()
                     MeanderAvatar(size: .small)
                 }
-                Text("\(trip.daysUntilDeparture) days left")
+                Text(daysLeftLine)
                     .foregroundStyle(MaiandrosTheme.secondaryText)
                 Text("\(trip.itemsRemaining) items remaining")
                     .font(.subheadline)
@@ -311,5 +311,12 @@ private struct TripCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private var daysLeftLine: String {
+        if trip.daysUntilDeparture == 0 {
+            return "Today is the day. Meander says you’re ready."
+        }
+        return "\(trip.daysUntilDeparture) days left"
     }
 }

@@ -62,10 +62,17 @@ struct TripDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Countdown")
                     .font(.headline)
-                Text("\(trip.daysUntilDeparture)")
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
-                Text("days until \(trip.destination)")
-                    .font(.title3)
+                if trip.daysUntilDeparture == 0 {
+                    Text("Today is the day")
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                    Text("Meander says: breathe, wander, enjoy \(trip.destination).")
+                        .font(.title3)
+                } else {
+                    Text("\(trip.daysUntilDeparture)")
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
+                    Text("days until \(trip.destination)")
+                        .font(.title3)
+                }
                 Text(MeanderQuoteService.line(for: .countdown, daysUntil: trip.daysUntilDeparture, seed: trip.id.uuidString))
                     .foregroundStyle(MaiandrosTheme.secondaryText)
                 Divider()
