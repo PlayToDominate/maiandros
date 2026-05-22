@@ -191,7 +191,16 @@ struct Trip: Identifiable, Codable, Equatable {
     }
 
     var isPast: Bool {
-        endDate < .now
+        endDate.startOfDay < Date().startOfDay
+    }
+
+    var isOnTrip: Bool {
+        let today = Date().startOfDay
+        return startDate.startOfDay <= today && endDate.startOfDay >= today
+    }
+
+    var isUpcoming: Bool {
+        startDate.startOfDay > Date().startOfDay
     }
 }
 

@@ -2,12 +2,14 @@ import WidgetKit
 import SwiftUI
 
 private enum WidgetDepartureCopy {
-    static func title(seed: String = "") -> String {
-        pick(from: titles, seed: "widget-depart-title-\(seed)")
+    static func title(seed: String = "", compact: Bool) -> String {
+        let bucket = compact ? compactTitles : titles
+        return pick(from: bucket, seed: "widget-depart-title-\(seed)-\(compact)")
     }
 
-    static func subtitle(seed: String = "") -> String {
-        pick(from: subtitles, seed: "widget-depart-subtitle-\(seed)")
+    static func subtitle(seed: String = "", compact: Bool) -> String {
+        let bucket = compact ? compactSubtitles : subtitles
+        return pick(from: bucket, seed: "widget-depart-subtitle-\(seed)-\(compact)")
     }
 
     private static func pick(from lines: [String], seed: String) -> String {
@@ -101,6 +103,24 @@ private enum WidgetDepartureCopy {
         "Meander says wandering counts as productivity today.",
         "Tiny hoof reminder: the trip already started the moment you got excited about it."
     ]
+
+    private static let compactTitles: [String] = [
+        "Today's the day",
+        "Time to wander",
+        "Safe travels",
+        "Off you go",
+        "Airport mode on",
+        "Trip day is here",
+        "Adventure starts"
+    ]
+
+    private static let compactSubtitles: [String] = [
+        "Meander is gate-ready.",
+        "Tiny memories count too.",
+        "Breathe, then wander.",
+        "Snacks? Charger? Joy?",
+        "Future-you says thanks."
+    ]
 }
 
 private struct WidgetTripSnapshot: Codable {
@@ -182,6 +202,7 @@ struct MaiandrosCountdownWidget: Widget {
 }
 
 struct MaiandrosCountdownWidgetView: View {
+    @Environment(\.widgetFamily) private var family
     var entry: MaiandrosCountdownEntry
 
     var body: some View {
@@ -198,46 +219,57 @@ struct MaiandrosCountdownWidgetView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
+                    if entry.hasSnapshot && entry.daysUntil == 0 {
+                        Text("On Vacation")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color(red: 0.35, green: 0.28, blue: 0.20))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(0.55))
+                            .clipShape(Capsule())
+                    }
                     Spacer()
                     Image("MeanderWidget")
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 34, height: 34)
+                        .frame(width: avatarSize, height: avatarSize)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
 
                 Spacer(minLength: 2)
 
                 if entry.hasSnapshot && entry.daysUntil == 0 {
-                    Text(WidgetDepartureCopy.title(seed: entry.tripName))
-                        .font(.system(size: 32, weight: .heavy, design: .rounded))
+                    Text(WidgetDepartureCopy.title(seed: entry.tripName, compact: family == .systemSmall))
+                        .font(.system(size: titleFontSize, weight: .heavy, design: .rounded))
                         .foregroundStyle(Color(red: 0.22, green: 0.18, blue: 0.14))
-                        .minimumScaleFactor(0.7)
-                    Text(WidgetDepartureCopy.subtitle(seed: entry.tripName))
-                        .font(.footnote)
+                        .minimumScaleFactor(0.50)
+                        .lineLimit(family == .systemMedium ? 2 : 2)
+                    Text(WidgetDepartureCopy.subtitle(seed: entry.tripName, compact: family == .systemSmall))
+                        .font(subtitleFont)
                         .foregroundStyle(Color(red: 0.37, green: 0.31, blue: 0.24))
-                        .lineLimit(2)
+                        .lineLimit(family == .systemMedium ? 2 : 2)
                 } else {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("\(entry.daysUntil)")
-                            .font(.system(size: 54, weight: .heavy, design: .rounded))
+                            .font(.system(size: countFontSize, weight: .heavy, design: .rounded))
                             .foregroundStyle(Color(red: 0.22, green: 0.18, blue: 0.14))
-                            .minimumScaleFactor(0.7)
+                            .minimumScaleFactor(0.55)
                         Text("days")
-                            .font(.headline.weight(.semibold))
+                            .font(daysLabelFont)
                             .foregroundStyle(Color(red: 0.43, green: 0.35, blue: 0.26))
                     }
 
                     Text(entry.tripName == "No Trips Yet" ? "Start planning your next wander." : "until \(entry.destination)")
-                        .font(.footnote)
+                        .font(subtitleFont)
                         .foregroundStyle(Color(red: 0.37, green: 0.31, blue: 0.24))
-                        .lineLimit(2)
+                        .lineLimit(family == .systemMedium ? 2 : 3)
                 }
 
                 if !entry.hasSnapshot {
                     Text("Open the app once to sync trips.")
-                        .font(.caption2)
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(Color(red: 0.45, green: 0.36, blue: 0.27))
+                        .lineLimit(2)
                 }
             }
             .padding(14)
@@ -253,6 +285,26 @@ struct MaiandrosCountdownWidgetView: View {
                 endPoint: .bottomTrailing
             )
         }
+    }
+
+    private var avatarSize: CGFloat {
+        family == .systemMedium ? 38 : 34
+    }
+
+    private var countFontSize: CGFloat {
+        family == .systemMedium ? 58 : 52
+    }
+
+    private var titleFontSize: CGFloat {
+        family == .systemMedium ? 26 : 20
+    }
+
+    private var subtitleFont: Font {
+        family == .systemMedium ? .footnote : .caption
+    }
+
+    private var daysLabelFont: Font {
+        family == .systemMedium ? .headline.weight(.semibold) : .subheadline.weight(.semibold)
     }
 }
 
