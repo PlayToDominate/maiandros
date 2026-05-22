@@ -8,8 +8,12 @@ struct HomeView: View {
     @State private var showingMeanderHub = false
     @StateObject private var notificationCenter = MeanderNotificationCenter()
 
-    var currentTrips: [Trip] {
-        store.trips.filter { !$0.isPast }.sorted { $0.startDate < $1.startDate }
+    var onTrip: [Trip] {
+        store.trips.filter { $0.isOnTrip }.sorted { $0.startDate < $1.startDate }
+    }
+
+    var upcomingTrips: [Trip] {
+        store.trips.filter { $0.isUpcoming }.sorted { $0.startDate < $1.startDate }
     }
 
     var pastTrips: [Trip] {
@@ -38,7 +42,7 @@ struct HomeView: View {
                         .accessibilityLabel("Open Meander")
                     }
 
-                    Text(MeanderQuoteService.line(for: currentTrips.isEmpty ? .homeEmpty : .homeActiveTrips, seed: "home-header"))
+                    Text(MeanderQuoteService.line(for: (onTrip.isEmpty && upcomingTrips.isEmpty) ? .homeEmpty : .homeActiveTrips, seed: "home-header"))
                         .font(.footnote)
                         .foregroundStyle(MaiandrosTheme.secondaryText)
                 }
@@ -47,15 +51,21 @@ struct HomeView: View {
                 .listRowSeparator(.hidden)
 
                 Section {
-                    if currentTrips.isEmpty {
+                    if onTrip.isEmpty {
                         CozyCard {
-                            MeanderEmptyState(line: MeanderQuoteService.line(for: .homeEmpty, seed: "home-empty"))
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("No trip in progress right now.")
+                                    .foregroundStyle(MaiandrosTheme.secondaryText)
+                                Text("When departure day arrives, it will show up here.")
+                                    .font(.footnote)
+                                    .foregroundStyle(MaiandrosTheme.secondaryText)
+                            }
                         }
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                     } else {
-                        ForEach(currentTrips) { trip in
+                        ForEach(onTrip) { trip in
                             NavigationLink(value: trip.id) {
                                 TripCard(trip: trip)
                             }
@@ -73,7 +83,37 @@ struct HomeView: View {
                         }
                     }
                 } header: {
-                    Text("Current Trips")
+                    Text("On Trip")
+                }
+
+                Section {
+                    if upcomingTrips.isEmpty {
+                        CozyCard {
+                            MeanderEmptyState(line: MeanderQuoteService.line(for: .homeEmpty, seed: "home-empty"))
+                        }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    } else {
+                        ForEach(upcomingTrips) { trip in
+                            NavigationLink(value: trip.id) {
+                                TripCard(trip: trip)
+                            }
+                            .buttonStyle(.plain)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    store.deleteTrip(id: trip.id)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                        }
+                    }
+                } header: {
+                    Text("Upcoming Trips")
                 }
 
                 Section {
