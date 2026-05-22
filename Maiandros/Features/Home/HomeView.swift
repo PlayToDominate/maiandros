@@ -315,7 +315,7 @@ private struct TripCard: View {
 
     private var daysLeftLine: String {
         if trip.daysUntilDeparture == 0 {
-            return "Today is the day. Meander says you’re ready."
+            return MeanderQuoteService.departureDayTitle(seed: trip.id.uuidString)
         }
         return "\(trip.daysUntilDeparture) days left"
     }

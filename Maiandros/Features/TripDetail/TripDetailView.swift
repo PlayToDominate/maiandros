@@ -63,9 +63,9 @@ struct TripDetailView: View {
                 Text("Countdown")
                     .font(.headline)
                 if trip.daysUntilDeparture == 0 {
-                    Text("Today is the day")
+                    Text(MeanderQuoteService.departureDayTitle(seed: trip.id.uuidString))
                         .font(.system(size: 40, weight: .bold, design: .rounded))
-                    Text("Meander says: breathe, wander, enjoy \(trip.destination).")
+                    Text(MeanderQuoteService.departureDaySubtitle(seed: trip.id.uuidString))
                         .font(.title3)
                 } else {
                     Text("\(trip.daysUntilDeparture)")
