@@ -2,6 +2,8 @@
 
 Maiandros is a calm, cozy trip-readiness companion app with local-only storage and no account system.
 
+[Jump to Screenshot Gallery](#screenshots)
+
 ## What V1 Includes
 
 - Home screen with current trips, past trips placeholder, and trip cards
@@ -46,6 +48,29 @@ Maiandros is a calm, cozy trip-readiness companion app with local-only storage a
 1. Open `Maiandros.xcodeproj`
 2. Set your own Team + Bundle Identifier (`com.example.Maiandros` is placeholder)
 3. Run on an iPhone simulator or device
+
+## Screenshots
+
+1. Widget and Icon  
+![Widget and Icon](docs/screenshots/widget-and-icon.png)
+
+2. Home Screen  
+![Home Screen](docs/screenshots/home-screen.png)
+
+3. Trip Details  
+![Trip Details](docs/screenshots/trip-details.png)
+
+4. Edit Trip Details  
+![Edit Trip Details](docs/screenshots/edit-trip-details.png)
+
+5. Packing List  
+![Packing List](docs/screenshots/packing-list.png)
+
+6. About Maiandros  
+![About Maiandros](docs/screenshots/about-maiandros.png)
+
+7. Notifications  
+![Notifications](docs/screenshots/notifications.png)
 
 ## Next V1.1 Ideas
 
