@@ -10,30 +10,45 @@ struct TripDetailView: View {
     @State private var newCabinetTags = ""
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedCabinetImageItem: PhotosPickerItem?
+    @State private var isChecklistExpanded = false
+    @State private var isCabinetExpanded = false
     @Environment(\.openURL) private var openURL
 
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                MeanderCalloutCard(line: MeanderQuoteService.timelineLine(daysUntil: trip.daysUntilDeparture, seed: trip.id.uuidString))
-                countdownSection
-                checklistSection
-                albumSection
-                cabinetSection
+                MeanderCalloutCard(line: meanderTimelineLine)
+                if isPastTrip {
+                    albumSection
+                    collapsibleCabinetSection
+                    collapsibleChecklistSection
+                } else {
+                    countdownSection
+                    checklistSection
+                    albumSection
+                    cabinetSection
+                }
             }
             .padding()
         }
         .background(MaiandrosTheme.background.ignoresSafeArea())
         .navigationTitle(trip.name)
         .onAppear {
+            if isPastTrip {
+                isChecklistExpanded = false
+                isCabinetExpanded = false
+            }
+            guard !isPastTrip else { return }
             weatherViewModel.loadWeather(for: trip)
             weatherViewModel.loadTenDay(for: trip)
         }
         .onChange(of: trip.startDate) { _, _ in
+            guard !isPastTrip else { return }
             weatherViewModel.loadWeather(for: trip)
             weatherViewModel.loadTenDay(for: trip)
         }
         .onChange(of: trip.destination) { _, _ in
+            guard !isPastTrip else { return }
             weatherViewModel.loadWeather(for: trip)
             weatherViewModel.loadTenDay(for: trip)
         }
@@ -55,6 +70,17 @@ struct TripDetailView: View {
                 }
             }
         }
+    }
+
+    private var isPastTrip: Bool {
+        trip.isPast
+    }
+
+    private var meanderTimelineLine: String {
+        if isPastTrip {
+            return MeanderQuoteService.line(for: .postTripNostalgia, seed: trip.id.uuidString)
+        }
+        return MeanderQuoteService.timelineLine(daysUntil: trip.daysUntilDeparture, seed: trip.id.uuidString)
     }
 
     private var countdownSection: some View {
@@ -97,6 +123,41 @@ struct TripDetailView: View {
                     .buttonStyle(.borderedProminent)
                 }
                 .padding(.top, 2)
+            }
+        }
+    }
+
+    private var collapsibleChecklistSection: some View {
+        CozyCard {
+            DisclosureGroup(isExpanded: $isChecklistExpanded) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(MeanderQuoteService.line(for: .postTripNostalgia, seed: "checklist-\(trip.id.uuidString)"))
+                        .font(.footnote)
+                        .foregroundStyle(MaiandrosTheme.secondaryText)
+                        .padding(.top, 6)
+
+                    ForEach(trip.checklist) { item in
+                        NavigationLink {
+                            if item.title == "Packing List" {
+                                PackingListDetailView(trip: $trip, packingChecklistItemID: item.id)
+                            } else if item.title == "Home Preparation" {
+                                HomePreparationDetailView(trip: $trip, homeChecklistItemID: item.id)
+                            } else {
+                                ChecklistItemDetailView(
+                                    trip: $trip,
+                                    checklistItemID: item.id,
+                                    sectionTag: sectionTag(for: item.title)
+                                )
+                            }
+                        } label: {
+                            checklistRow(for: item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            } label: {
+                Text("Checklist")
+                    .font(.headline)
             }
         }
     }
@@ -226,6 +287,53 @@ struct TripDetailView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private var collapsibleCabinetSection: some View {
+        CozyCard {
+            DisclosureGroup(isExpanded: $isCabinetExpanded) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(MeanderQuoteService.line(for: .postTripNostalgia, seed: "cabinet-\(trip.id.uuidString)"))
+                        .font(.footnote)
+                        .foregroundStyle(MaiandrosTheme.secondaryText)
+                        .padding(.top, 6)
+
+                    TextField("Note / link / reminder", text: $newCabinetText)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Tags (comma separated)", text: $newCabinetTags)
+                        .textFieldStyle(.roundedBorder)
+                    PhotosPicker(selection: $selectedCabinetImageItem, matching: .images) {
+                        Label("Attach Screenshot / Photo", systemImage: "paperclip")
+                    }
+                    Button("Save to Cabinet") {
+                        let text = newCabinetText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !text.isEmpty else { return }
+                        let tags = parseTags(newCabinetTags)
+                        trip.cabinet.insert(CabinetEntry(text: text, tags: tags), at: 0)
+                        newCabinetText = ""
+                        newCabinetTags = ""
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    if trip.cabinet.isEmpty {
+                        HStack {
+                            Text("No snippets tucked away yet.")
+                                .font(.footnote)
+                                .foregroundStyle(MaiandrosTheme.secondaryText)
+                            Spacer()
+                            MeanderBadge()
+                        }
+                    }
+
+                    ForEach(trip.cabinet) { entry in
+                        CabinetEntryCard(entry: entry)
+                    }
+                }
+            } label: {
+                Text("Cabinet")
+                    .font(.headline)
             }
         }
     }

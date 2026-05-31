@@ -423,6 +423,9 @@ private struct TripCard: View {
     }
 
     private var daysLeftLine: String {
+        if trip.isPast {
+            return MeanderQuoteService.line(for: .postTripNostalgia, seed: "past-card-\(trip.id.uuidString)")
+        }
         if trip.daysUntilDeparture == 0 {
             return MeanderQuoteService.departureDayTitle(seed: trip.id.uuidString)
         }
