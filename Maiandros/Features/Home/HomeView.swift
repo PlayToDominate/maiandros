@@ -4,6 +4,7 @@ import UserNotifications
 
 struct HomeView: View {
     @EnvironmentObject private var store: TripStore
+    @State private var path = NavigationPath()
     @State private var showingCreate = false
     @State private var showingMeanderHub = false
     @StateObject private var notificationCenter = MeanderNotificationCenter()
@@ -21,7 +22,7 @@ struct HomeView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .top) {
@@ -117,20 +118,34 @@ struct HomeView: View {
                 }
 
                 Section {
-                    CozyCard {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(pastTrips.isEmpty ? "Past trips will gather here like happy postcards." : "\(pastTrips.count) past trip(s)")
+                    if pastTrips.isEmpty {
+                        CozyCard {
+                            Text("Past trips will gather here like happy postcards.")
                                 .foregroundStyle(MaiandrosTheme.secondaryText)
-                            if !pastTrips.isEmpty {
-                                Text(MeanderQuoteService.line(for: .postTripNostalgia, seed: "past-trips"))
-                                    .font(.footnote)
-                                    .foregroundStyle(MaiandrosTheme.secondaryText)
+                        }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    } else {
+                        Button {
+                            path.append(HomeRoute.pastTripsSummary)
+                        } label: {
+                            CozyCard {
+                                HStack {
+                                    Text("\(pastTrips.count) past trip(s)")
+                                        .foregroundStyle(MaiandrosTheme.secondaryText)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundStyle(.tertiary)
+                                }
                             }
                         }
+                        .buttonStyle(.plain)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
                 } header: {
                     Text("Past Trips")
                 }
@@ -153,6 +168,12 @@ struct HomeView: View {
             .background(MaiandrosTheme.background.ignoresSafeArea())
             .scrollContentBackground(.hidden)
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: HomeRoute.self) { route in
+                switch route {
+                case .pastTripsSummary:
+                    PastTripsSummaryView()
+                }
+            }
             .navigationDestination(for: UUID.self) { id in
                 if let trip = store.trips.first(where: { $0.id == id }) {
                     TripDetailView(trip: trip)
@@ -171,6 +192,51 @@ struct HomeView: View {
                 Task { await notificationCenter.refresh() }
             }
         }
+    }
+}
+
+private enum HomeRoute: Hashable {
+    case pastTripsSummary
+}
+
+private struct PastTripsSummaryView: View {
+    @EnvironmentObject private var store: TripStore
+    private var pastTrips: [Trip] {
+        store.trips.filter { $0.isPast }.sorted { $0.startDate > $1.startDate }
+    }
+
+    var body: some View {
+        List {
+            CozyCard {
+                Text(MeanderQuoteService.line(for: .postTripNostalgia, seed: "past-trips"))
+                    .font(.footnote)
+                    .foregroundStyle(MaiandrosTheme.secondaryText)
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+
+            ForEach(pastTrips) { trip in
+                NavigationLink(value: trip.id) {
+                    TripCard(trip: trip, showsPlanningDetails: false)
+                }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        store.deleteTrip(id: trip.id)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
+        }
+        .background(MaiandrosTheme.background.ignoresSafeArea())
+        .scrollContentBackground(.hidden)
+        .navigationTitle("Past Trips")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -325,6 +391,7 @@ private extension UNUserNotificationCenter {
 
 private struct TripCard: View {
     let trip: Trip
+    var showsPlanningDetails: Bool = true
 
     var body: some View {
         CozyCard {
@@ -334,7 +401,7 @@ private struct TripCard: View {
                         Text(trip.destination)
                             .font(.title3.weight(.semibold))
                             .foregroundStyle(MaiandrosTheme.primaryText)
-                        Text(trip.reason.title)
+                        Text(tripNameAndReasonLine)
                             .font(.caption)
                             .foregroundStyle(MaiandrosTheme.secondaryText)
                     }
@@ -343,11 +410,13 @@ private struct TripCard: View {
                 }
                 Text(daysLeftLine)
                     .foregroundStyle(MaiandrosTheme.secondaryText)
-                Text("\(trip.itemsRemaining) items remaining")
-                    .font(.subheadline)
-                Text("Next: \(trip.nextImportantTask?.title ?? MeanderQuoteService.line(for: .upcomingTask, seed: trip.id.uuidString))")
-                    .font(.footnote)
-                    .foregroundStyle(MaiandrosTheme.secondaryText)
+                if showsPlanningDetails {
+                    Text("\(trip.itemsRemaining) items remaining")
+                        .font(.subheadline)
+                    Text("Next: \(trip.nextImportantTask?.title ?? MeanderQuoteService.line(for: .upcomingTask, seed: trip.id.uuidString))")
+                        .font(.footnote)
+                        .foregroundStyle(MaiandrosTheme.secondaryText)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -358,5 +427,13 @@ private struct TripCard: View {
             return MeanderQuoteService.departureDayTitle(seed: trip.id.uuidString)
         }
         return "\(trip.daysUntilDeparture) days left"
+    }
+
+    private var tripNameAndReasonLine: String {
+        let trimmedName = trip.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedName.isEmpty {
+            return trip.reason.title
+        }
+        return "\(trimmedName) (\(trip.reason.title))"
     }
 }
