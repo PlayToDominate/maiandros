@@ -480,23 +480,38 @@ private struct TenDayForecastView: View {
 }
 
 private struct TripBasicsEditView: View {
+    @Environment(\.dismiss) private var dismiss
     @Binding var trip: Trip
     @StateObject private var autocomplete = DestinationAutocompleteViewModel()
+    @State private var draftTrip: Trip
+
+    init(trip: Binding<Trip>) {
+        self._trip = trip
+        self._draftTrip = State(initialValue: trip.wrappedValue)
+    }
+
+    private var canSave: Bool {
+        let hasValidBasics =
+            !draftTrip.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !draftTrip.destination.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            draftTrip.endDate >= draftTrip.startDate
+        return hasValidBasics && draftTrip != trip
+    }
 
     var body: some View {
         Form {
             Section("Trip Basics") {
-                TextField("Trip Name", text: $trip.name)
+                TextField("Trip Name", text: $draftTrip.name)
 
-                TextField("Destination", text: $trip.destination)
-                    .onChange(of: trip.destination) { _, newValue in
+                TextField("Destination", text: $draftTrip.destination)
+                    .onChange(of: draftTrip.destination) { _, newValue in
                         autocomplete.update(query: newValue)
                     }
 
-                if !autocomplete.suggestions.isEmpty && !trip.destination.isEmpty {
+                if !autocomplete.suggestions.isEmpty && !draftTrip.destination.isEmpty {
                     ForEach(autocomplete.suggestions) { suggestion in
                         Button {
-                            trip.destination = suggestion.displayText
+                            draftTrip.destination = suggestion.displayText
                             autocomplete.acceptSelection()
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
@@ -512,16 +527,16 @@ private struct TripBasicsEditView: View {
                     }
                 }
 
-                DatePicker("Start Date", selection: $trip.startDate, displayedComponents: .date)
-                DatePicker("End Date", selection: $trip.endDate, in: trip.startDate..., displayedComponents: .date)
+                DatePicker("Start Date", selection: $draftTrip.startDate, displayedComponents: .date)
+                DatePicker("End Date", selection: $draftTrip.endDate, in: draftTrip.startDate..., displayedComponents: .date)
 
-                Picker("Reason", selection: $trip.reason) {
+                Picker("Reason", selection: $draftTrip.reason) {
                     ForEach(TripReason.allCases) { reason in
                         Text(reason.title).tag(reason)
                     }
                 }
 
-                Picker("Flying or Driving", selection: $trip.travelMode) {
+                Picker("Flying or Driving", selection: $draftTrip.travelMode) {
                     ForEach(TravelMode.allCases) { mode in
                         Text(mode.title).tag(mode)
                     }
@@ -530,6 +545,15 @@ private struct TripBasicsEditView: View {
             }
         }
         .navigationTitle("Edit Trip")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Save") {
+                    trip = draftTrip
+                    dismiss()
+                }
+                .disabled(!canSave)
+            }
+        }
     }
 }
 
